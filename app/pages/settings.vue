@@ -40,7 +40,7 @@ async function save() {
 </script>
 
 <template>
-  <div class="space-y-5 max-w-5xl">
+  <div class="space-y-5 max-w-3xl mx-auto">
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <!-- Venue card -->
       <div class="bg-white border border-[#E8E8EC] rounded-2xl p-6 shadow-sm space-y-4">
