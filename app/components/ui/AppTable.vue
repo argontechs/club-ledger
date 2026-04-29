@@ -12,9 +12,13 @@ defineProps<{ rows: T[]; loading?: boolean; emptyText?: string }>()
           </tr>
         </thead>
         <tbody>
-          <tr v-if="loading">
-            <td colspan="999" class="px-4 py-8 text-center text-[13px] text-gray-400">Loading…</td>
-          </tr>
+          <template v-if="loading">
+            <tr v-for="n in 3" :key="`sk-${n}`" class="border-b border-[#F8F8F8] last:border-b-0">
+              <td colspan="999" class="px-4 py-3">
+                <div class="h-4 bg-gray-100 rounded animate-pulse" />
+              </td>
+            </tr>
+          </template>
           <tr v-else-if="rows.length === 0">
             <td colspan="999" class="px-4 py-8 text-center text-[13px] text-gray-400">{{ emptyText ?? 'No data' }}</td>
           </tr>
