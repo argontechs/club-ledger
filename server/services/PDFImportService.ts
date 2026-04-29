@@ -58,13 +58,13 @@ export async function parsePdfBuffer(buf: Buffer): Promise<ParseResult> {
 }
 
 const CommitSchema = z.object({
-  ambassadorId: z.number().int().positive(),
   status: z.enum(['draft', 'confirmed']).default('draft'),
   rows: z.array(z.object({
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     externalOrderId: z.string().regex(/^T\d{15}$/),
     tableNumber: z.string(),
     amount: z.number().positive(),
+    ambassadorId: z.number().int().positive(),
   })).min(1),
 })
 
@@ -85,9 +85,18 @@ export const PDFImportService = {
 
   async commit(actor: Actor & { id: number }, body: unknown) {
     const v = CommitSchema.parse(body)
-    const amb = await AmbassadorRepo.findById(v.ambassadorId)
-    if (!amb || amb.deletedAt) throw ApiError.validation({ ambassadorId: 'Unknown ambassador' })
-    await assertNotOwnerProtected(actor, { kind: 'sale', ambassadorId: v.ambassadorId })
+
+    // Validate every ambassador exists and isn't owner-protected for the actor
+    const uniqueIds = Array.from(new Set(v.rows.map(r => r.ambassadorId)))
+    const ambassadors = new Map<number, any>()
+    for (const id of uniqueIds) {
+      const amb = await AmbassadorRepo.findById(id)
+      if (!amb || amb.deletedAt) {
+        throw ApiError.validation({ rows: `Unknown ambassador (id=${id})` })
+      }
+      await assertNotOwnerProtected(actor, { kind: 'sale', ambassadorId: id })
+      ambassadors.set(id, amb)
+    }
 
     const existing = await SaleRepo.findByExternalOrderIds(v.rows.map(r => r.externalOrderId))
     const existingSet = new Set(existing.map(e => e.externalOrderId))
@@ -96,22 +105,24 @@ export const PDFImportService = {
     if (toInsert.length === 0) return { imported: 0, skipped: v.rows.length }
 
     const bonusRate = await SettingsService.get('bonus_rate')
-    const commissionRate = amb.commissionRate
 
-    const records = toInsert.map(r => ({
-      date: r.date,
-      ambassadorId: v.ambassadorId,
-      type: 'Table' as const,
-      amount: r.amount.toFixed(2),
-      notes: null,
-      tableNumber: r.tableNumber,
-      externalOrderId: r.externalOrderId,
-      status: v.status,
-      confirmedCommissionRate: v.status === 'confirmed' ? commissionRate : null,
-      confirmedBonusRate: v.status === 'confirmed' ? bonusRate : null,
-      confirmedAt: v.status === 'confirmed' ? new Date() : null,
-      createdBy: actor.id,
-    }))
+    const records = toInsert.map(r => {
+      const amb = ambassadors.get(r.ambassadorId)!
+      return {
+        date: r.date,
+        ambassadorId: r.ambassadorId,
+        type: 'Table' as const,
+        amount: r.amount.toFixed(2),
+        notes: null,
+        tableNumber: r.tableNumber,
+        externalOrderId: r.externalOrderId,
+        status: v.status,
+        confirmedCommissionRate: v.status === 'confirmed' ? amb.commissionRate : null,
+        confirmedBonusRate: v.status === 'confirmed' ? bonusRate : null,
+        confirmedAt: v.status === 'confirmed' ? new Date() : null,
+        createdBy: actor.id,
+      }
+    })
 
     await SaleRepo.insertMany(records as any)
     return { imported: toInsert.length, skipped: v.rows.length - toInsert.length }
