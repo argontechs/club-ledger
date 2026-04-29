@@ -1,4 +1,4 @@
-import { PDFParse } from 'pdf-parse'
+import { extractText, getDocumentProxy } from 'unpdf'
 import { z } from 'zod'
 import { SaleRepo } from '~~/server/repositories/SaleRepository'
 import { AmbassadorRepo } from '~~/server/repositories/AmbassadorRepository'
@@ -22,7 +22,7 @@ export interface ParseResult {
 
 const ROW_RE = /(\d{4}-\d{2}-\d{2})\s+(T\d{15})\s+\S+\s+\S+\s+\S+\s+\S+\s+(\S+)\s+(.+?)\s+\S+\s+RM\s+([\d,.\-]+)\s+RM\s*([\d,.\-]+)/g
 const HEADER_TOTAL_RE = /总计\s+RM\s*([\d,.]+)\s+RM\s*([\d,.]+)/
-const HINT_RE = /AGENT COMMISSION ON\s*\n\s*([^\n]+)/i
+const HINT_RE = /AGENT COMMISSION ON\s+(.+?)\s+(?:营业|总计|\d{4}-\d{2}-\d{2})/i
 
 function toNumber(rmCell: string): number | null {
   const cleaned = rmCell.replace(/,/g, '').trim()
@@ -32,10 +32,9 @@ function toNumber(rmCell: string): number | null {
 }
 
 export async function parsePdfBuffer(buf: Buffer): Promise<ParseResult> {
-  const parser = new PDFParse({ data: buf })
-  const parsed = await parser.getText()
-  await parser.destroy()
-  const text = parsed.text
+  const pdf = await getDocumentProxy(new Uint8Array(buf))
+  const { text: pages } = await extractText(pdf, { mergePages: true })
+  const text = Array.isArray(pages) ? pages.join('\n') : pages
   const errors: string[] = []
 
   const headerMatch = text.match(HEADER_TOTAL_RE)
