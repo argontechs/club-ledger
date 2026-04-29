@@ -1,6 +1,23 @@
 @import 'tailwindcss';
 
+@theme {
+  --color-ink: #0A0A0A;
+  --color-surface: #F0F2F5;
+  --color-border: #E8E8EC;
+  --color-brand: #E11D48;        /* rose-600 — Nono Club accent */
+  --color-brand-dark: #BE123C;   /* rose-700 */
+  --color-brand-tint: rgba(225, 29, 72, 0.10);
+}
+
 @layer base {
   html, body, #__nuxt { height: 100%; }
-  body { @apply bg-slate-50 text-slate-800 font-sans; }
+  body {
+    background-color: var(--color-surface);
+    color: var(--color-ink);
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #E8E8EC; border-radius: 2px; }
 }
