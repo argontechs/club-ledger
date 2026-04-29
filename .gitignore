@@ -23,3 +23,6 @@ drizzle/.snapshot
 
 # Tests
 coverage
+/docs
+*.pdf
+!tests/fixtures/*.pdf

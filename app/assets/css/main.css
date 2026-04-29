@@ -1,0 +1,6 @@
+@import 'tailwindcss';
+
+@layer base {
+  html, body, #__nuxt { height: 100%; }
+  body { @apply bg-slate-50 text-slate-800 font-sans; }
+}
