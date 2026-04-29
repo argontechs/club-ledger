@@ -20,6 +20,17 @@ watch(monthList, (list) => {
   if (list && list.length && !month.value) month.value = list[0]
 }, { immediate: true })
 
+// Pagination
+const page = ref(1)
+const perPage = ref(25)
+watch([month, ambassadorFilter], () => { page.value = 1 })
+
+const pagedSales = computed(() => {
+  const list = rows.value ?? []
+  const start = (page.value - 1) * perPage.value
+  return list.slice(start, start + perPage.value)
+})
+
 const showCreate = ref(false)
 const m = useAPIMutation()
 const confirm = useConfirm()
@@ -120,7 +131,7 @@ async function bulkConfirmDrafts() {
       </div>
     </div>
 
-    <AppTable :rows="rows ?? []" empty-text="No sales for this month">
+    <AppTable :rows="pagedSales" empty-text="No sales for this month">
       <template #head>
         <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-gray-300">Date</th>
         <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-gray-300">Ambassador</th>
@@ -145,6 +156,15 @@ async function bulkConfirmDrafts() {
         </td>
       </template>
     </AppTable>
+
+    <AppPagination
+      v-if="(rows ?? []).length > 0"
+      :total="(rows ?? []).length"
+      :page="page"
+      :per-page="perPage"
+      @update:page="page = $event"
+      @update:per-page="perPage = $event"
+    />
 
     <AppModal :open="showCreate" title="New sale" @close="showCreate = false">
       <SaleForm v-if="ambassadors && showCreate" :ambassadors="ambassadors" @submit="onCreate" />

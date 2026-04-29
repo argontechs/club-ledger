@@ -13,11 +13,22 @@ import { currentMonth, formatDate } from '~/utils/dateFormat'
 import { downloadAuthed } from '~/utils/download'
 definePageMeta({ middleware: ['role'] })
 
-const month = ref(currentMonth())
+const month = ref('')
 const statusFilter = ref<'all' | 'paid' | 'unpaid'>('all')
-const { data: rows, refresh } = useAPI<any[]>(() => `/payouts?month=${month.value}`)
+const { data: monthList } = useAPI<string[]>('/payouts/months')
+const { data: rows, refresh } = useAPI<any[]>(() => month.value ? `/payouts?month=${month.value}` : '')
 const { data: ambassadors } = useAPI<any[]>('/ambassadors')
 const { data: teams } = useAPI<any[]>('/teams')
+
+watch(monthList, (list) => {
+  if (list && list.length && !month.value) month.value = list[0]
+  else if ((!list || list.length === 0) && !month.value) month.value = currentMonth()
+}, { immediate: true })
+
+// Pagination
+const page = ref(1)
+const perPage = ref(25)
+watch([month, statusFilter], () => { page.value = 1 })
 
 const showCreate = ref(false)
 
@@ -39,6 +50,11 @@ const filteredRows = computed(() => {
   if (statusFilter.value === 'paid') return list.filter(r => !!r.paidAt)
   if (statusFilter.value === 'unpaid') return list.filter(r => !r.paidAt)
   return list
+})
+
+const pagedRows = computed(() => {
+  const start = (page.value - 1) * perPage.value
+  return filteredRows.value.slice(start, start + perPage.value)
 })
 
 async function markPaid(id: number) {
@@ -150,15 +166,29 @@ const statusOptions = [
 
 <template>
   <div class="space-y-5">
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-      <div class="flex flex-col sm:flex-row gap-2 sm:items-center">
-        <AppMonthPicker v-model="month" />
-        <AppSelect v-model="statusFilter" :options="statusOptions" />
+    <div class="flex flex-col gap-3">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <AppMonthPills v-model="month" :months="monthList ?? []" label="Month" empty-text="No payouts recorded yet" />
+        <AppButton class="w-full sm:w-auto" @click="showCreate = true">+ Create payouts</AppButton>
       </div>
-      <AppButton class="w-full sm:w-auto" @click="showCreate = true">+ Create payouts</AppButton>
+      <div class="flex flex-wrap items-center gap-1.5">
+        <span class="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mr-2">Status</span>
+        <button
+          v-for="opt in statusOptions"
+          :key="opt.value"
+          type="button"
+          class="px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors border"
+          :class="statusFilter === opt.value
+            ? 'bg-[#0A0A0A] text-white border-[#0A0A0A]'
+            : 'bg-white text-gray-600 border-[#E0E0E0] hover:border-gray-400'"
+          @click="statusFilter = opt.value as any"
+        >
+          {{ opt.label }}
+        </button>
+      </div>
     </div>
 
-    <AppTable :rows="filteredRows" empty-text="No payouts for this filter">
+    <AppTable :rows="pagedRows" empty-text="No payouts for this filter">
       <template #head>
         <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-gray-300">Ambassador</th>
         <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-gray-300">Period</th>
@@ -248,6 +278,15 @@ const statusOptions = [
         </td>
       </template>
     </AppTable>
+
+    <AppPagination
+      v-if="filteredRows.length > 0"
+      :total="filteredRows.length"
+      :page="page"
+      :per-page="perPage"
+      @update:page="page = $event"
+      @update:per-page="perPage = $event"
+    />
 
     <!-- Batch create payouts modal -->
     <PayoutCreateModal

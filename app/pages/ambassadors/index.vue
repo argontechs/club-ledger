@@ -14,6 +14,14 @@ const showAdd = ref(false)
 const editing = ref<any | null>(null)
 const saving = ref(false)
 
+const page = ref(1)
+const perPage = ref(25)
+const pagedRows = computed(() => {
+  const list = rows.value ?? []
+  const start = (page.value - 1) * perPage.value
+  return list.slice(start, start + perPage.value)
+})
+
 const defaultRate = computed(() => Number(settings.value?.default_commission_rate ?? 8))
 
 type FormState = {
@@ -62,12 +70,19 @@ async function save() {
     toast.error('Name is required')
     return
   }
+  const teamRaw = form.value.teamId
+  const teamId = teamRaw === '' || teamRaw === null || teamRaw === undefined ? null : Number(teamRaw)
+  const rate = Number(form.value.commissionRate)
+  if (!Number.isFinite(rate)) {
+    toast.error('Commission rate must be a number')
+    return
+  }
   const payload = {
     name: form.value.name.trim(),
     fullName: form.value.fullName.trim() || null,
     ic: form.value.ic.trim() || null,
-    teamId: form.value.teamId,
-    commissionRate: Number(form.value.commissionRate),
+    teamId,
+    commissionRate: rate,
     bankName: form.value.bankName.trim() || null,
     bankAccountNumber: form.value.bankAccountNumber.trim() || null,
     bankOwnerName: form.value.bankOwnerName.trim() || null,
@@ -113,7 +128,7 @@ const isAdmin = computed(() => auth.user?.role === 'admin')
       <AppButton class="w-full sm:w-auto" @click="showAdd = true">+ New ambassador</AppButton>
     </div>
 
-    <AppTable :rows="rows ?? []" empty-text="No ambassadors yet">
+    <AppTable :rows="pagedRows" empty-text="No ambassadors yet">
       <template #head>
         <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-gray-300">Name</th>
         <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-gray-300">Team</th>
@@ -137,6 +152,15 @@ const isAdmin = computed(() => auth.user?.role === 'admin')
         </td>
       </template>
     </AppTable>
+
+    <AppPagination
+      v-if="(rows ?? []).length > 0"
+      :total="(rows ?? []).length"
+      :page="page"
+      :per-page="perPage"
+      @update:page="page = $event"
+      @update:per-page="perPage = $event"
+    />
 
     <AppModal
       :open="showAdd"

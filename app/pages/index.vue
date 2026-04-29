@@ -6,11 +6,17 @@ import { formatRM } from '~/utils/currency'
 import { useAuthStore } from '~/stores/auth'
 
 const auth = useAuthStore()
-const month = ref(currentMonth())
+const month = ref('')
 
-const { data: commissions } = useAPI<any[]>(() => `/commissions?month=${month.value}`)
-const { data: sales } = useAPI<any[]>(() => `/sales?month=${month.value}`)
-const { data: leaderboard } = useAPI<any[]>(() => `/leaderboard?month=${month.value}&type=all`)
+const { data: monthList } = useAPI<string[]>('/commissions/months')
+watch(monthList, (list) => {
+  if (list && list.length && !month.value) month.value = list[0]
+  else if ((!list || list.length === 0) && !month.value) month.value = currentMonth()
+}, { immediate: true })
+
+const { data: commissions } = useAPI<any[]>(() => month.value ? `/commissions?month=${month.value}` : '')
+const { data: sales } = useAPI<any[]>(() => month.value ? `/sales?month=${month.value}` : '')
+const { data: leaderboard } = useAPI<any[]>(() => month.value ? `/leaderboard?month=${month.value}&type=all` : '')
 const { data: chartData } = useAPI<Array<{ month: string; totalSales: number; totalCommission: number }>>('/commissions/chart')
 
 const me = computed(() => commissions.value?.find(r => r.userId === auth.user?.id))
@@ -120,9 +126,9 @@ onBeforeUnmount(() => {
 <template>
   <div class="space-y-5">
     <!-- Filter row -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div class="flex flex-col gap-3">
       <p class="text-[13px] text-gray-400">Overview for</p>
-      <AppMonthPicker v-model="month" />
+      <AppMonthPills v-model="month" :months="monthList ?? []" empty-text="No sales recorded yet" />
     </div>
 
     <!-- KPI Cards -->
