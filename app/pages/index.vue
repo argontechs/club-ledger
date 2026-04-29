@@ -204,10 +204,6 @@ onBeforeUnmount(() => {
               <span class="text-gray-500">Own commission</span>
               <span class="font-semibold text-[#0A0A0A]">{{ formatRM(me?.ownCommission ?? 0) }}</span>
             </div>
-            <div class="flex items-center justify-between text-[13px]">
-              <span class="text-gray-500">Bonus</span>
-              <span class="font-semibold text-[#0A0A0A]">{{ formatRM(me?.bonus ?? 0) }}</span>
-            </div>
             <div class="border-t border-[#F0F0F0] pt-2.5 flex items-center justify-between">
               <span class="text-[12px] font-bold uppercase tracking-wide text-gray-400">Total</span>
               <span class="text-[18px] font-bold text-[#BE123C]">{{ formatRM(me?.total ?? 0) }}</span>
