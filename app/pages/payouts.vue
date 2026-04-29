@@ -1,7 +1,16 @@
 <script setup lang="ts">
-import { CheckIcon, ArrowPathIcon, TrashIcon } from '@heroicons/vue/24/outline'
+import {
+  CheckIcon,
+  ArrowPathIcon,
+  TrashIcon,
+  DocumentArrowDownIcon,
+  DocumentTextIcon,
+  PaperClipIcon,
+  ClipboardDocumentIcon,
+} from '@heroicons/vue/24/outline'
 import { formatRM } from '~/utils/currency'
 import { currentMonth, formatDate } from '~/utils/dateFormat'
+import { downloadAuthed } from '~/utils/download'
 definePageMeta({ middleware: ['role'] })
 
 const month = ref(currentMonth())
@@ -10,15 +19,16 @@ const { data: rows, refresh } = useAPI<any[]>(() => `/payouts?month=${month.valu
 const { data: ambassadors } = useAPI<any[]>('/ambassadors')
 const { data: teams } = useAPI<any[]>('/teams')
 
-const showAdd = ref(false)
-const ambassadorId = ref<number | null>(null)
-const amount = ref<number>(0)
-const notes = ref('')
-const markPaidImmediately = ref(false)
-const saving = ref(false)
+const showCreate = ref(false)
 
 const detailModalOpen = ref(false)
 const selectedAmbassador = ref<any | null>(null)
+
+const receiptOpen = ref(false)
+const receiptPayout = ref<any | null>(null)
+
+const generatingPayslip = ref<number | null>(null)
+const downloadingSummary = ref<number | null>(null)
 
 const m = useAPIMutation()
 const confirm = useConfirm()
@@ -30,38 +40,6 @@ const filteredRows = computed(() => {
   if (statusFilter.value === 'unpaid') return list.filter(r => !r.paidAt)
   return list
 })
-
-function openAddModal() {
-  ambassadorId.value = null
-  amount.value = 0
-  notes.value = ''
-  markPaidImmediately.value = false
-  showAdd.value = true
-}
-
-async function add() {
-  if (!ambassadorId.value) {
-    toast.error('Please select an ambassador')
-    return
-  }
-  saving.value = true
-  try {
-    await m.post('/payouts', {
-      ambassadorId: ambassadorId.value,
-      periodMonth: month.value,
-      amount: Number(amount.value),
-      notes: notes.value || null,
-      markPaid: markPaidImmediately.value,
-    })
-    showAdd.value = false
-    await refresh()
-    toast.success('Payout recorded')
-  } catch (e: any) {
-    toast.error(e?.data?.error?.message || 'Failed to record payout')
-  } finally {
-    saving.value = false
-  }
-}
 
 async function markPaid(id: number) {
   try {
@@ -94,6 +72,48 @@ async function remove(id: number) {
   }
 }
 
+async function downloadSummary(id: number) {
+  downloadingSummary.value = id
+  try {
+    await downloadAuthed(`/payouts/${id}/summary`, `payout-${id}-summary.pdf`)
+  } catch (e: any) {
+    toast.error(e?.message ?? 'Failed to download summary')
+  } finally {
+    downloadingSummary.value = null
+  }
+}
+
+async function downloadPayslip(id: number) {
+  generatingPayslip.value = id
+  try {
+    await m.post(`/payouts/${id}/payslip`, {})
+    await downloadAuthed(`/payouts/${id}/payslip`, `payout-${id}-payslip.pdf`)
+    await refresh()
+    toast.success('Payslip generated')
+  } catch (e: any) {
+    toast.error(e?.data?.error?.message ?? 'Failed to generate payslip')
+  } finally {
+    generatingPayslip.value = null
+  }
+}
+
+function openReceipts(row: any) {
+  receiptPayout.value = row
+  receiptOpen.value = true
+}
+
+function closeReceipts() {
+  receiptOpen.value = false
+  receiptPayout.value = null
+}
+
+function onReceiptsUpdated(receipts: any[]) {
+  if (receiptPayout.value) {
+    receiptPayout.value = { ...receiptPayout.value, receiptPaths: receipts }
+  }
+  refresh()
+}
+
 function openAmbassadorDetail(ambassadorIdParam: number) {
   const a = ambassadors.value?.find(x => x.id === ambassadorIdParam)
   if (!a) return
@@ -111,6 +131,16 @@ function teamName(teamId: number | null | undefined) {
   return teams.value?.find(t => t.id === teamId)?.name ?? '—'
 }
 
+async function copyAccount(value: string | null | undefined) {
+  if (!value) return
+  try {
+    await navigator.clipboard.writeText(value)
+    toast.success('Account number copied')
+  } catch {
+    toast.error('Copy failed')
+  }
+}
+
 const statusOptions = [
   { value: 'all', label: 'All statuses' },
   { value: 'paid', label: 'Paid' },
@@ -125,7 +155,7 @@ const statusOptions = [
         <AppMonthPicker v-model="month" />
         <AppSelect v-model="statusFilter" :options="statusOptions" />
       </div>
-      <AppButton class="w-full sm:w-auto" @click="openAddModal">+ Record payout</AppButton>
+      <AppButton class="w-full sm:w-auto" @click="showCreate = true">+ Create payouts</AppButton>
     </div>
 
     <AppTable :rows="filteredRows" empty-text="No payouts for this filter">
@@ -176,6 +206,38 @@ const statusOptions = [
             </button>
             <button
               type="button"
+              :title="downloadingSummary === row.id ? 'Downloading…' : 'Download summary PDF'"
+              :disabled="downloadingSummary === row.id"
+              class="w-8 h-8 inline-flex items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 transition-colors disabled:opacity-50"
+              @click="downloadSummary(row.id)"
+            >
+              <DocumentArrowDownIcon class="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              :title="generatingPayslip === row.id ? 'Generating…' : 'Generate & download payslip'"
+              :disabled="generatingPayslip === row.id"
+              class="w-8 h-8 inline-flex items-center justify-center rounded-md text-indigo-500 hover:bg-indigo-50 transition-colors disabled:opacity-50"
+              @click="downloadPayslip(row.id)"
+            >
+              <DocumentTextIcon class="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              title="Receipts"
+              class="relative w-8 h-8 inline-flex items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 transition-colors"
+              @click="openReceipts(row)"
+            >
+              <PaperClipIcon class="w-4 h-4" />
+              <span
+                v-if="row.receiptPaths?.length"
+                class="absolute -top-0.5 -right-0.5 inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-[#E11D48] text-white text-[9px] font-bold leading-none"
+              >
+                {{ row.receiptPaths.length }}
+              </span>
+            </button>
+            <button
+              type="button"
               title="Delete payout"
               class="w-8 h-8 inline-flex items-center justify-center rounded-md text-gray-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
               @click="remove(row.id)"
@@ -187,30 +249,20 @@ const statusOptions = [
       </template>
     </AppTable>
 
-    <!-- Record payout modal -->
-    <AppModal :open="showAdd" title="Record payout" @close="showAdd = false">
-      <div class="space-y-3">
-        <AppSelect
-          v-model="ambassadorId"
-          label="Ambassador"
-          :options="[{ value: '', label: '— Select ambassador —' }, ...((ambassadors ?? []).map(a => ({ value: a.id, label: a.name })))]"
-        />
-        <AppInput v-model="amount" type="number" label="Amount (RM)" />
-        <AppInput v-model="notes" label="Notes (optional)" />
-        <label class="flex items-center gap-2 pt-1">
-          <input
-            v-model="markPaidImmediately"
-            type="checkbox"
-            class="w-4 h-4 rounded border-gray-300 text-[#E11D48] focus:ring-[#E11D48]/30"
-          >
-          <span class="text-[13px] text-gray-700">Mark as paid immediately</span>
-        </label>
-      </div>
-      <template #footer>
-        <AppButton variant="secondary" @click="showAdd = false">Cancel</AppButton>
-        <AppButton :disabled="saving" @click="add">{{ saving ? 'Saving…' : 'Save payout' }}</AppButton>
-      </template>
-    </AppModal>
+    <!-- Batch create payouts modal -->
+    <PayoutCreateModal
+      :open="showCreate"
+      @close="showCreate = false"
+      @created="refresh"
+    />
+
+    <!-- Receipts modal -->
+    <PayoutReceiptModal
+      :open="receiptOpen"
+      :payout="receiptPayout"
+      @close="closeReceipts"
+      @updated="onReceiptsUpdated"
+    />
 
     <!-- Ambassador detail modal -->
     <AppModal
@@ -243,9 +295,20 @@ const statusOptions = [
               <dt class="text-[12px] text-gray-500">Bank name</dt>
               <dd class="text-[13px] text-[#0A0A0A]">{{ selectedAmbassador.bankName || '—' }}</dd>
             </div>
-            <div class="flex justify-between gap-3">
+            <div class="flex justify-between gap-3 items-center">
               <dt class="text-[12px] text-gray-500">Account number</dt>
-              <dd class="text-[13px] font-mono text-[#0A0A0A]">{{ selectedAmbassador.bankAccountNumber || '—' }}</dd>
+              <dd class="text-[13px] font-mono text-[#0A0A0A] flex items-center gap-2">
+                <span>{{ selectedAmbassador.bankAccountNumber || '—' }}</span>
+                <button
+                  v-if="selectedAmbassador.bankAccountNumber"
+                  type="button"
+                  class="w-6 h-6 inline-flex items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+                  title="Copy account number"
+                  @click="copyAccount(selectedAmbassador.bankAccountNumber)"
+                >
+                  <ClipboardDocumentIcon class="w-3.5 h-3.5" />
+                </button>
+              </dd>
             </div>
             <div class="flex justify-between gap-3">
               <dt class="text-[12px] text-gray-500">Account holder</dt>
