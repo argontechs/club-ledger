@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import Chart from 'chart.js/auto'
 import { currentMonth } from '~/utils/dateFormat'
 import { formatRM } from '~/utils/currency'
 import { useAuthStore } from '~/stores/auth'
@@ -10,6 +11,7 @@ const month = ref(currentMonth())
 const { data: commissions } = useAPI<any[]>(() => `/commissions?month=${month.value}`)
 const { data: sales } = useAPI<any[]>(() => `/sales?month=${month.value}`)
 const { data: leaderboard } = useAPI<any[]>(() => `/leaderboard?month=${month.value}&type=all`)
+const { data: chartData } = useAPI<Array<{ month: string; totalSales: number; totalCommission: number }>>('/commissions/chart')
 
 const me = computed(() => commissions.value?.find(r => r.userId === auth.user?.id))
 
@@ -27,6 +29,92 @@ const confirmedCount = computed(() =>
 const top5 = computed(() => (leaderboard.value ?? []).slice(0, 5))
 
 const showBreakdown = computed(() => !!me.value)
+
+const salesChart = ref<HTMLCanvasElement | null>(null)
+const commChart = ref<HTMLCanvasElement | null>(null)
+let salesInst: Chart | null = null
+let commInst: Chart | null = null
+
+function shortMonth(ym: string) {
+  const [y, m] = ym.split('-').map(Number)
+  return new Date(y, m - 1).toLocaleString('en-US', { month: 'short' })
+}
+
+function chartOpts(): any {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { display: false }, ticks: { color: '#9CA3AF', font: { size: 11 } } },
+      y: {
+        grid: { color: '#F0F0F0' },
+        ticks: {
+          color: '#9CA3AF',
+          font: { size: 11 },
+          callback: (v: any) => 'RM ' + (v >= 1000 ? (v / 1000).toFixed(1) + 'k' : v),
+        },
+        beginAtZero: true,
+      },
+    },
+  }
+}
+
+function renderCharts() {
+  const points = chartData.value ?? []
+  const labels = points.map(p => shortMonth(p.month))
+  const salesData = points.map(p => p.totalSales)
+  const commData = points.map(p => p.totalCommission)
+
+  salesInst?.destroy()
+  commInst?.destroy()
+
+  if (salesChart.value) {
+    salesInst = new Chart(salesChart.value, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Sales',
+          data: salesData,
+          borderColor: '#E11D48',
+          backgroundColor: 'rgba(225, 29, 72, 0.08)',
+          fill: true,
+          tension: 0.35,
+          pointRadius: 3,
+          pointBackgroundColor: '#E11D48',
+        }],
+      },
+      options: chartOpts(),
+    })
+  }
+  if (commChart.value) {
+    commInst = new Chart(commChart.value, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Commission',
+          data: commData,
+          borderColor: '#0A0A0A',
+          backgroundColor: 'rgba(10, 10, 10, 0.05)',
+          fill: true,
+          tension: 0.35,
+          pointRadius: 3,
+          pointBackgroundColor: '#0A0A0A',
+        }],
+      },
+      options: chartOpts(),
+    })
+  }
+}
+
+watch(chartData, () => nextTick(renderCharts))
+onMounted(() => nextTick(renderCharts))
+onBeforeUnmount(() => {
+  salesInst?.destroy()
+  commInst?.destroy()
+})
 </script>
 
 <template>
@@ -43,6 +131,22 @@ const showBreakdown = computed(() => !!me.value)
       <AppCard label="Commissions Paid" prefix="RM " :value="formatRM(totalCommissions).replace(/^RM\s*/, '')" />
       <AppCard label="My Commission" prefix="RM " :value="formatRM(myCommission).replace(/^RM\s*/, '')" />
       <AppCard label="Confirmed Sales" :value="confirmedCount" />
+    </div>
+
+    <!-- Trend charts -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div class="bg-white border border-[#E8E8EC] rounded-2xl p-5 shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-[12px] font-bold uppercase tracking-wide text-gray-400">Sales — Last 6 Months</h3>
+        </div>
+        <div class="h-[180px]"><canvas ref="salesChart" /></div>
+      </div>
+      <div class="bg-white border border-[#E8E8EC] rounded-2xl p-5 shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-[12px] font-bold uppercase tracking-wide text-gray-400">Commission — Last 6 Months</h3>
+        </div>
+        <div class="h-[180px]"><canvas ref="commChart" /></div>
+      </div>
     </div>
 
     <!-- Top performers + my breakdown -->
