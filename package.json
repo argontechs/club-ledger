@@ -24,6 +24,7 @@
     "chart.js": "^4.5.1",
     "drizzle-orm": "^0.45.2",
     "flatpickr": "^4.6.13",
+    "h3": "2.0.1-rc.20",
     "jsonwebtoken": "^9.0.3",
     "mysql2": "^3.22.3",
     "nuxt": "^4.4.2",
