@@ -80,9 +80,9 @@ const totalsMismatch = computed(() =>
         <p v-if="file" class="text-[12px] text-gray-500 truncate max-w-full">{{ file.name }}</p>
         <input type="file" accept="application/pdf" class="hidden" @change="onPickFile">
       </label>
-      <div class="mt-3 flex items-center justify-end gap-2">
-        <p v-if="error" class="text-[12px] text-red-600 mr-auto">{{ error }}</p>
-        <AppButton :disabled="!file" @click="parse">
+      <div class="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2">
+        <p v-if="error" class="text-[12px] text-red-600 sm:mr-auto">{{ error }}</p>
+        <AppButton class="w-full sm:w-auto" :disabled="!file" @click="parse">
           <DocumentArrowDownIcon class="w-4 h-4" />
           Parse PDF
         </AppButton>
@@ -107,7 +107,7 @@ const totalsMismatch = computed(() =>
         PDF hint: <span class="font-medium text-gray-700">{{ dryRun.ambassadorHint }}</span>
       </p>
 
-      <div class="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-3">
+      <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
         <AppSelect
           v-model="ambassadorId"
           label="Assign to ambassador"
@@ -120,8 +120,8 @@ const totalsMismatch = computed(() =>
         />
       </div>
 
-      <div class="mt-4 flex items-center justify-end">
-        <AppButton :disabled="!ambassadorId || importing" @click="commit">
+      <div class="mt-4 flex flex-col sm:flex-row items-stretch sm:items-center sm:justify-end gap-2">
+        <AppButton class="w-full sm:w-auto" :disabled="!ambassadorId || importing" @click="commit">
           Import {{ importableRows.length }} row(s)
         </AppButton>
       </div>

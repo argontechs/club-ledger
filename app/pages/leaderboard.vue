@@ -18,16 +18,16 @@ const medalClass = (i: number) => {
 
 <template>
   <div class="space-y-5">
-    <div class="flex items-center justify-between gap-3">
-      <div class="flex items-center gap-2">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div class="flex flex-col sm:flex-row gap-2">
         <input
           v-model="month"
           type="month"
-          class="px-3 py-1.5 border border-[#E0E0E0] rounded-lg text-[12px] bg-white text-[#0A0A0A] outline-none focus:border-[#E11D48] focus:ring-2 focus:ring-[#E11D48]/10 transition-colors"
+          class="w-full sm:w-auto px-3 py-1.5 border border-[#E0E0E0] rounded-lg text-[12px] bg-white text-[#0A0A0A] outline-none focus:border-[#E11D48] focus:ring-2 focus:ring-[#E11D48]/10 transition-colors"
         >
         <select
           v-model="type"
-          class="px-3 py-1.5 border border-[#E0E0E0] rounded-lg text-[12px] bg-white text-[#0A0A0A] outline-none focus:border-[#E11D48] focus:ring-2 focus:ring-[#E11D48]/10 transition-colors"
+          class="w-full sm:w-auto px-3 py-1.5 border border-[#E0E0E0] rounded-lg text-[12px] bg-white text-[#0A0A0A] outline-none focus:border-[#E11D48] focus:ring-2 focus:ring-[#E11D48]/10 transition-colors"
         >
           <option value="all">All</option>
           <option value="Table">Table</option>

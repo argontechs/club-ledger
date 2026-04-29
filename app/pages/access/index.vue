@@ -63,8 +63,8 @@ const roleTone = (r: string) => {
 
 <template>
   <div class="space-y-5">
-    <div class="flex items-center justify-end">
-      <AppButton @click="showAdd = true">+ New user</AppButton>
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2">
+      <AppButton class="w-full sm:w-auto" @click="showAdd = true">+ New user</AppButton>
     </div>
 
     <AppTable :rows="users ?? []" empty-text="No users">

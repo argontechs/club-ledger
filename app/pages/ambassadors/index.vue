@@ -48,8 +48,8 @@ const isAdmin = computed(() => auth.user?.role === 'admin')
 
 <template>
   <div class="space-y-5">
-    <div class="flex items-center justify-end">
-      <AppButton @click="showAdd = true">+ New ambassador</AppButton>
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2">
+      <AppButton class="w-full sm:w-auto" @click="showAdd = true">+ New ambassador</AppButton>
     </div>
 
     <AppTable :rows="rows ?? []" empty-text="No ambassadors yet">
