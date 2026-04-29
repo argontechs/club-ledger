@@ -30,12 +30,12 @@ async function remove(id: number, name: string) {
 </script>
 
 <template>
-  <div class="space-y-5 max-w-3xl">
-    <div class="bg-white border border-[#E8E8EC] rounded-2xl p-5 shadow-sm">
+  <div class="space-y-5">
+    <div class="bg-white border border-[#E8E8EC] rounded-2xl p-5 shadow-sm max-w-md">
       <h3 class="text-[12px] font-bold uppercase tracking-wide text-gray-400 mb-3">Add team</h3>
       <div class="flex flex-col sm:flex-row gap-2">
         <div class="flex-1">
-          <AppInput v-model="newName" placeholder="e.g. Floor A" />
+          <AppInput v-model="newName" placeholder="e.g. Team Johnny" />
         </div>
         <AppButton class="w-full sm:w-auto" :disabled="!newName.trim()" @click="add">Add</AppButton>
       </div>
