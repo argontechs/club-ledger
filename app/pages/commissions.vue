@@ -4,25 +4,41 @@ import { currentMonth } from '~/utils/dateFormat'
 
 const month = ref(currentMonth())
 const { data: rows } = useAPI<any[]>(() => `/commissions?month=${month.value}`)
+
+const roleTone = (r: string) => {
+  if (r === 'owner' || r === 'admin') return 'rose'
+  if (r === 'leader') return 'amber'
+  return 'slate'
+}
 </script>
+
 <template>
-  <div class="space-y-4">
-    <div class="flex items-center gap-3">
-      <AppInput v-model="month" type="month" />
+  <div class="space-y-5">
+    <div class="flex items-center justify-between">
+      <p class="text-[13px] text-gray-400">Commissions for <span class="text-gray-600 font-semibold">{{ month }}</span></p>
+      <input
+        v-model="month"
+        type="month"
+        class="px-3 py-1.5 border border-[#E0E0E0] rounded-lg text-[12px] bg-white text-[#0A0A0A] outline-none focus:border-[#E11D48] focus:ring-2 focus:ring-[#E11D48]/10 transition-colors"
+      >
     </div>
+
     <AppTable :rows="rows ?? []" empty-text="No data">
       <template #head>
-        <th class="p-2">Name</th><th class="p-2">Role</th>
-        <th class="p-2 text-right">Own sales</th><th class="p-2 text-right">Own commission</th>
-        <th class="p-2 text-right">Bonus</th><th class="p-2 text-right">Total</th>
+        <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-gray-300">Name</th>
+        <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-gray-300">Role</th>
+        <th class="px-4 py-2.5 text-right text-[10px] font-bold uppercase tracking-wide text-gray-300">Own sales</th>
+        <th class="px-4 py-2.5 text-right text-[10px] font-bold uppercase tracking-wide text-gray-300">Own commission</th>
+        <th class="px-4 py-2.5 text-right text-[10px] font-bold uppercase tracking-wide text-gray-300">Bonus</th>
+        <th class="px-4 py-2.5 text-right text-[10px] font-bold uppercase tracking-wide text-gray-300">Total</th>
       </template>
       <template #row="{ row }">
-        <td class="p-2">{{ row.name }}</td>
-        <td class="p-2">{{ row.role }}</td>
-        <td class="p-2 text-right">{{ formatRM(row.ownSales) }}</td>
-        <td class="p-2 text-right">{{ formatRM(row.ownCommission) }}</td>
-        <td class="p-2 text-right">{{ formatRM(row.bonus) }}</td>
-        <td class="p-2 text-right font-semibold">{{ formatRM(row.total) }}</td>
+        <td class="px-4 py-3 text-[13px] font-medium text-[#0A0A0A]">{{ row.name }}</td>
+        <td class="px-4 py-3"><AppBadge :tone="roleTone(row.role)">{{ row.role }}</AppBadge></td>
+        <td class="px-4 py-3 text-[13px] text-right text-gray-600">{{ formatRM(row.ownSales) }}</td>
+        <td class="px-4 py-3 text-[13px] text-right text-gray-600">{{ formatRM(row.ownCommission) }}</td>
+        <td class="px-4 py-3 text-[13px] text-right text-gray-600">{{ formatRM(row.bonus) }}</td>
+        <td class="px-4 py-3 text-[13px] text-right font-semibold text-[#BE123C]">{{ formatRM(row.total) }}</td>
       </template>
     </AppTable>
   </div>

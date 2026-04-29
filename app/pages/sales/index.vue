@@ -25,27 +25,41 @@ async function voidSale(id: number) {
   await m.post(`/sales/${id}/void`); await refresh()
 }
 </script>
+
 <template>
-  <div class="space-y-4">
-    <div class="flex items-center gap-3">
-      <AppInput v-model="month" type="month" />
+  <div class="space-y-5">
+    <!-- Filter row -->
+    <div class="flex items-center justify-between gap-3">
+      <input
+        v-model="month"
+        type="month"
+        class="px-3 py-1.5 border border-[#E0E0E0] rounded-lg text-[12px] bg-white text-[#0A0A0A] outline-none focus:border-[#E11D48] focus:ring-2 focus:ring-[#E11D48]/10 transition-colors"
+      >
       <AppButton @click="showCreate = true">+ New sale</AppButton>
     </div>
 
     <AppTable :rows="rows ?? []" empty-text="No sales for this month">
       <template #head>
-        <th class="p-2">Date</th><th class="p-2">Ambassador</th><th class="p-2">Type</th>
-        <th class="p-2 text-right">Amount</th><th class="p-2">Status</th><th class="p-2"></th>
+        <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-gray-300">Date</th>
+        <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-gray-300">Ambassador</th>
+        <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-gray-300">Type</th>
+        <th class="px-4 py-2.5 text-right text-[10px] font-bold uppercase tracking-wide text-gray-300">Amount</th>
+        <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-gray-300">Status</th>
+        <th class="px-4 py-2.5" />
       </template>
       <template #row="{ row }">
-        <td class="p-2">{{ formatDate(row.date) }}</td>
-        <td class="p-2">{{ ambassadors?.find(a => a.id === row.ambassadorId)?.name ?? row.ambassadorId }}</td>
-        <td class="p-2">{{ row.type }}</td>
-        <td class="p-2 text-right">{{ formatRM(row.amount) }}</td>
-        <td class="p-2"><SaleStatusBadge :status="row.status" /></td>
-        <td class="p-2 text-right space-x-2">
-          <AppButton v-if="row.status === 'draft'" variant="secondary" @click="confirmSale(row.id)">Confirm</AppButton>
-          <AppButton v-if="row.status !== 'voided'" variant="danger" @click="voidSale(row.id)">Void</AppButton>
+        <td class="px-4 py-3 text-[13px] text-gray-600">{{ formatDate(row.date) }}</td>
+        <td class="px-4 py-3 text-[13px] font-medium text-[#0A0A0A]">
+          {{ ambassadors?.find(a => a.id === row.ambassadorId)?.name ?? row.ambassadorId }}
+        </td>
+        <td class="px-4 py-3 text-[13px] text-gray-500">{{ row.type }}</td>
+        <td class="px-4 py-3 text-[13px] text-right font-semibold text-[#0A0A0A]">{{ formatRM(row.amount) }}</td>
+        <td class="px-4 py-3"><SaleStatusBadge :status="row.status" /></td>
+        <td class="px-4 py-3 text-right">
+          <div class="inline-flex gap-1.5">
+            <AppButton v-if="row.status === 'draft'" size="sm" variant="secondary" @click="confirmSale(row.id)">Confirm</AppButton>
+            <AppButton v-if="row.status !== 'voided'" size="sm" variant="danger" @click="voidSale(row.id)">Void</AppButton>
+          </div>
         </td>
       </template>
     </AppTable>

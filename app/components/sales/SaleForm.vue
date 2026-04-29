@@ -16,15 +16,24 @@ function submit() {
   })
 }
 </script>
+
 <template>
   <form class="space-y-3" @submit.prevent="submit">
     <AppInput v-model="date" type="date" label="Date" />
-    <AppSelect v-model="ambassadorId" label="Ambassador"
-      :options="props.ambassadors.map(a => ({ value: a.id, label: a.name }))" />
-    <AppSelect v-model="type" label="Type"
-      :options="[{ value: 'Table', label: 'Table' }, { value: 'BGO', label: 'BGO' }]" />
+    <AppSelect
+      v-model="ambassadorId"
+      label="Ambassador"
+      :options="props.ambassadors.map(a => ({ value: a.id, label: a.name }))"
+    />
+    <AppSelect
+      v-model="type"
+      label="Type"
+      :options="[{ value: 'Table', label: 'Table' }, { value: 'BGO', label: 'BGO' }]"
+    />
     <AppInput v-model="amount" type="number" label="Amount (RM)" />
     <AppInput v-model="notes" label="Notes (optional)" />
-    <AppButton type="submit">Save draft</AppButton>
+    <div class="pt-2 flex justify-end">
+      <AppButton type="submit">Save draft</AppButton>
+    </div>
   </form>
 </template>

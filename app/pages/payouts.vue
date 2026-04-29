@@ -12,46 +12,70 @@ const ambassadorId = ref<number | null>(null)
 const amount = ref<number>(0)
 const notes = ref('')
 const m = useAPIMutation()
+const confirm = useConfirm()
 
 async function add() {
   if (!ambassadorId.value) return
-  await m.post('/payouts', { ambassadorId: ambassadorId.value, periodMonth: month.value, amount: Number(amount.value), notes: notes.value || null })
+  await m.post('/payouts', {
+    ambassadorId: ambassadorId.value, periodMonth: month.value,
+    amount: Number(amount.value), notes: notes.value || null,
+  })
   showAdd.value = false; amount.value = 0; notes.value = ''
   await refresh()
 }
 
 async function remove(id: number) {
+  if (!await confirm('Delete this payout?')) return
   await m.del(`/payouts/${id}`); await refresh()
 }
 </script>
+
 <template>
-  <div class="space-y-4">
-    <div class="flex items-center gap-3">
-      <AppInput v-model="month" type="month" />
+  <div class="space-y-5">
+    <div class="flex items-center justify-between gap-3">
+      <input
+        v-model="month"
+        type="month"
+        class="px-3 py-1.5 border border-[#E0E0E0] rounded-lg text-[12px] bg-white text-[#0A0A0A] outline-none focus:border-[#E11D48] focus:ring-2 focus:ring-[#E11D48]/10 transition-colors"
+      >
       <AppButton @click="showAdd = true">+ Record payout</AppButton>
     </div>
-    <AppTable :rows="rows ?? []" empty-text="No payouts">
+
+    <AppTable :rows="rows ?? []" empty-text="No payouts for this month">
       <template #head>
-        <th class="p-2">Ambassador</th><th class="p-2">Month</th>
-        <th class="p-2 text-right">Amount</th><th class="p-2">Paid at</th><th class="p-2"></th>
+        <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-gray-300">Ambassador</th>
+        <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-gray-300">Period</th>
+        <th class="px-4 py-2.5 text-right text-[10px] font-bold uppercase tracking-wide text-gray-300">Amount</th>
+        <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-gray-300">Paid at</th>
+        <th class="px-4 py-2.5" />
       </template>
       <template #row="{ row }">
-        <td class="p-2">{{ ambassadors?.find(a => a.id === row.ambassadorId)?.name ?? row.ambassadorId }}</td>
-        <td class="p-2">{{ row.periodMonth }}</td>
-        <td class="p-2 text-right">{{ formatRM(row.amount) }}</td>
-        <td class="p-2">{{ row.paidAt ? formatDate(row.paidAt.slice(0,10)) : '-' }}</td>
-        <td class="p-2 text-right"><AppButton variant="danger" @click="remove(row.id)">Delete</AppButton></td>
+        <td class="px-4 py-3 text-[13px] font-medium text-[#0A0A0A]">
+          {{ ambassadors?.find(a => a.id === row.ambassadorId)?.name ?? row.ambassadorId }}
+        </td>
+        <td class="px-4 py-3 text-[13px] text-gray-500">{{ row.periodMonth }}</td>
+        <td class="px-4 py-3 text-[13px] text-right font-semibold text-[#0A0A0A]">{{ formatRM(row.amount) }}</td>
+        <td class="px-4 py-3 text-[13px] text-gray-500">{{ row.paidAt ? formatDate(row.paidAt.slice(0, 10)) : '-' }}</td>
+        <td class="px-4 py-3 text-right">
+          <AppButton size="sm" variant="danger" @click="remove(row.id)">Delete</AppButton>
+        </td>
       </template>
     </AppTable>
 
     <AppModal :open="showAdd" title="Record payout" @close="showAdd = false">
       <div class="space-y-3">
-        <AppSelect v-model="ambassadorId" label="Ambassador"
-          :options="(ambassadors ?? []).map(a => ({ value: a.id, label: a.name }))" />
+        <AppSelect
+          v-model="ambassadorId"
+          label="Ambassador"
+          :options="(ambassadors ?? []).map(a => ({ value: a.id, label: a.name }))"
+        />
         <AppInput v-model="amount" type="number" label="Amount (RM)" />
         <AppInput v-model="notes" label="Notes (optional)" />
-        <AppButton @click="add">Save</AppButton>
       </div>
+      <template #footer>
+        <AppButton variant="secondary" @click="showAdd = false">Cancel</AppButton>
+        <AppButton @click="add">Save payout</AppButton>
+      </template>
     </AppModal>
   </div>
 </template>

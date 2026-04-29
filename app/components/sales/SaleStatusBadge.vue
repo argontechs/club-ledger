@@ -1,7 +1,12 @@
 <script setup lang="ts">
-defineProps<{ status: 'draft' | 'confirmed' | 'voided' }>()
-const map = { draft: 'bg-amber-100 text-amber-800', confirmed: 'bg-emerald-100 text-emerald-800', voided: 'bg-slate-200 text-slate-600' }
+import { computed } from 'vue'
+
+const props = defineProps<{ status: 'draft' | 'confirmed' | 'voided' }>()
+
+const toneMap = { draft: 'amber', confirmed: 'emerald', voided: 'slate' } as const
+const tone = computed(() => toneMap[props.status])
 </script>
+
 <template>
-  <span :class="['px-2 py-0.5 rounded text-xs font-medium', map[status]]">{{ status }}</span>
+  <AppBadge :tone="tone">{{ status }}</AppBadge>
 </template>
