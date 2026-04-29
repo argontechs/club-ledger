@@ -32,12 +32,12 @@ const showBreakdown = computed(() => !!me.value)
 <template>
   <div class="space-y-5">
     <!-- Filter row -->
-    <div class="flex items-center justify-between">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
       <p class="text-[13px] text-gray-400">Overview for</p>
       <input
         v-model="month"
         type="month"
-        class="px-3 py-1.5 border border-[#E0E0E0] rounded-lg text-[12px] bg-white text-[#0A0A0A] outline-none focus:border-[#E11D48] focus:ring-2 focus:ring-[#E11D48]/10 transition-colors"
+        class="w-full sm:w-auto px-3 py-1.5 border border-[#E0E0E0] rounded-lg text-[12px] bg-white text-[#0A0A0A] outline-none focus:border-[#E11D48] focus:ring-2 focus:ring-[#E11D48]/10 transition-colors"
       >
     </div>
 
@@ -50,7 +50,7 @@ const showBreakdown = computed(() => !!me.value)
     </div>
 
     <!-- Top performers + my breakdown -->
-    <div class="grid grid-cols-1" :class="showBreakdown ? 'lg:grid-cols-3 gap-4' : ''">
+    <div class="grid grid-cols-1 gap-4" :class="showBreakdown ? 'lg:grid-cols-3' : ''">
       <div :class="showBreakdown ? 'lg:col-span-2' : ''">
         <div class="bg-white border border-[#E8E8EC] rounded-2xl overflow-hidden shadow-sm">
           <div class="px-5 py-3 border-b border-[#F0F0F0] flex items-center justify-between">
