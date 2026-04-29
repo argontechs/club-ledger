@@ -3,17 +3,29 @@ definePageMeta({ middleware: ['role'] })
 const { data: rows, refresh } = useAPI<any[]>('/teams')
 const m = useAPIMutation()
 const confirm = useConfirm()
+const toast = useToast()
 const newName = ref('')
 
 async function add() {
   if (!newName.value.trim()) return
-  await m.post('/teams', { name: newName.value.trim() })
-  newName.value = ''
-  await refresh()
+  try {
+    await m.post('/teams', { name: newName.value.trim() })
+    newName.value = ''
+    await refresh()
+    toast.success('Team created')
+  } catch (e: any) {
+    toast.error(e?.data?.error?.message || 'Failed to create team')
+  }
 }
 async function remove(id: number, name: string) {
-  if (!await confirm(`Delete team "${name}"?`)) return
-  await m.del(`/teams/${id}`); await refresh()
+  if (!await confirm(`Delete team "${name}"?`, { tone: 'danger', confirmText: 'Delete' })) return
+  try {
+    await m.del(`/teams/${id}`)
+    await refresh()
+    toast.success('Team deleted')
+  } catch (e: any) {
+    toast.error(e?.data?.error?.message || 'Failed to delete team')
+  }
 }
 </script>
 

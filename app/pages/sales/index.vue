@@ -9,20 +9,38 @@ const { data: ambassadors } = useAPI<any[]>('/ambassadors')
 const showCreate = ref(false)
 const m = useAPIMutation()
 const confirm = useConfirm()
+const toast = useToast()
 
 async function onCreate(payload: any) {
-  await m.post('/sales', payload)
-  showCreate.value = false
-  await refresh()
+  try {
+    await m.post('/sales', payload)
+    showCreate.value = false
+    await refresh()
+    toast.success('Sale created')
+  } catch (e: any) {
+    toast.error(e?.data?.error?.message || 'Failed to create sale')
+  }
 }
 
 async function confirmSale(id: number) {
-  if (!await confirm('Confirm this sale? Rates will be locked.')) return
-  await m.post(`/sales/${id}/confirm`); await refresh()
+  if (!await confirm('Confirm this sale? Rates will be locked.', { confirmText: 'Confirm sale' })) return
+  try {
+    await m.post(`/sales/${id}/confirm`)
+    await refresh()
+    toast.success('Sale confirmed')
+  } catch (e: any) {
+    toast.error(e?.data?.error?.message || 'Failed to confirm sale')
+  }
 }
 async function voidSale(id: number) {
-  if (!await confirm('Void this sale?')) return
-  await m.post(`/sales/${id}/void`); await refresh()
+  if (!await confirm('Void this sale?', { tone: 'danger', confirmText: 'Void' })) return
+  try {
+    await m.post(`/sales/${id}/void`)
+    await refresh()
+    toast.success('Sale voided')
+  } catch (e: any) {
+    toast.error(e?.data?.error?.message || 'Failed to void sale')
+  }
 }
 </script>
 

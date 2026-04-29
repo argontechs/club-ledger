@@ -11,6 +11,7 @@ const roleOptions = computed(() => (roles.value ?? []).map(r => ({ value: r.id, 
 
 const m = useAPIMutation()
 const confirm = useConfirm()
+const toast = useToast()
 const showAdd = ref(false)
 const editing = ref<any | null>(null)
 const form = ref({ email: '', name: '', password: '', roleId: 0, ambassadorId: null as number | null })
@@ -35,10 +36,16 @@ async function save() {
     roleId: Number(form.value.roleId), ambassadorId: form.value.ambassadorId,
   }
   if (form.value.password) payload.password = form.value.password
-  if (editing.value) await m.put(`/users/${editing.value.id}`, payload)
-  else await m.post('/users', { ...payload, password: form.value.password || 'password' })
-  showAdd.value = false; editing.value = null
-  await refresh()
+  const wasEditing = !!editing.value
+  try {
+    if (editing.value) await m.put(`/users/${editing.value.id}`, payload)
+    else await m.post('/users', { ...payload, password: form.value.password || 'password' })
+    showAdd.value = false; editing.value = null
+    await refresh()
+    toast.success(wasEditing ? 'User updated' : 'User created')
+  } catch (e: any) {
+    toast.error(e?.data?.error?.message || 'Failed to save user')
+  }
 }
 
 function closeModal() {
@@ -47,8 +54,14 @@ function closeModal() {
 }
 
 async function remove(row: any) {
-  if (!await confirm(`Delete user ${row.name}?`)) return
-  await m.del(`/users/${row.id}`); await refresh()
+  if (!await confirm(`Delete user ${row.name}?`, { tone: 'danger', confirmText: 'Delete' })) return
+  try {
+    await m.del(`/users/${row.id}`)
+    await refresh()
+    toast.success('User deleted')
+  } catch (e: any) {
+    toast.error(e?.data?.error?.message || 'Failed to delete user')
+  }
 }
 
 const isAdmin = computed(() => auth.user?.role === 'admin')

@@ -16,6 +16,7 @@ watch(settings, (s) => {
 }, { immediate: true })
 
 const m = useAPIMutation()
+const toast = useToast()
 async function save() {
   saving.value = true
   saved.value = false
@@ -28,7 +29,10 @@ async function save() {
     })
     await refresh()
     saved.value = true
+    toast.success('Settings saved')
     setTimeout(() => { saved.value = false }, 2200)
+  } catch (e: any) {
+    toast.error(e?.data?.error?.message || 'Failed to save settings')
   } finally {
     saving.value = false
   }

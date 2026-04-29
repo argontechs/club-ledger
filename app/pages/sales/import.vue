@@ -47,6 +47,7 @@ const importableRows = computed(() =>
   (dryRun.value?.rows ?? []).filter((r: any) => !dupSet.value.has(r.externalOrderId)))
 
 const m = useAPIMutation()
+const toast = useToast()
 async function commit() {
   if (!ambassadorId.value || !dryRun.value) return
   importing.value = true
@@ -54,6 +55,9 @@ async function commit() {
     result.value = await m.post('/sales/import-commit', {
       ambassadorId: ambassadorId.value, status: status.value, rows: importableRows.value,
     })
+    toast.success(`Imported ${result.value?.imported ?? 0} sale(s)`)
+  } catch (e: any) {
+    toast.error(e?.data?.error?.message || 'Import failed')
   } finally { importing.value = false }
 }
 

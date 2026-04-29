@@ -9,6 +9,7 @@ const { data: settings } = useAPI<Record<string, string>>('/settings')
 const auth = useAuthStore()
 const m = useAPIMutation()
 const confirm = useConfirm()
+const toast = useToast()
 const showAdd = ref(false)
 const editing = ref<any | null>(null)
 
@@ -26,10 +27,16 @@ watch(editing, (v) => {
 
 async function save() {
   const payload = { name: form.value.name, teamId: form.value.teamId, commissionRate: Number(form.value.commissionRate) }
-  if (editing.value) await m.put(`/ambassadors/${editing.value.id}`, payload)
-  else await m.post('/ambassadors', payload)
-  showAdd.value = false; editing.value = null
-  await refresh()
+  const wasEditing = !!editing.value
+  try {
+    if (editing.value) await m.put(`/ambassadors/${editing.value.id}`, payload)
+    else await m.post('/ambassadors', payload)
+    showAdd.value = false; editing.value = null
+    await refresh()
+    toast.success(wasEditing ? 'Ambassador updated' : 'Ambassador created')
+  } catch (e: any) {
+    toast.error(e?.data?.error?.message || 'Failed to save ambassador')
+  }
 }
 
 function closeModal() {
@@ -38,8 +45,14 @@ function closeModal() {
 }
 
 async function remove(row: any) {
-  if (!await confirm(`Delete ${row.name}?`)) return
-  await m.del(`/ambassadors/${row.id}`); await refresh()
+  if (!await confirm(`Delete ${row.name}?`, { tone: 'danger', confirmText: 'Delete' })) return
+  try {
+    await m.del(`/ambassadors/${row.id}`)
+    await refresh()
+    toast.success('Ambassador deleted')
+  } catch (e: any) {
+    toast.error(e?.data?.error?.message || 'Failed to delete ambassador')
+  }
 }
 
 function isOwnerProtected(row: any) { return row.name === 'Johnny' }

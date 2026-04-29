@@ -1,7 +1,7 @@
 <template>
   <div class="flex min-h-screen bg-[#F0F2F5]">
     <Sidebar class="hidden lg:flex" />
-    <LayoutAppDrawer />
+    <AppDrawer />
     <div class="flex-1 min-w-0 flex flex-col">
       <Header>
         <template #actions>
@@ -12,5 +12,7 @@
         <slot />
       </main>
     </div>
+    <AppConfirmModal />
+    <AppToasts />
   </div>
 </template>

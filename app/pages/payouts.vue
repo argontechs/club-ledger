@@ -13,20 +13,32 @@ const amount = ref<number>(0)
 const notes = ref('')
 const m = useAPIMutation()
 const confirm = useConfirm()
+const toast = useToast()
 
 async function add() {
   if (!ambassadorId.value) return
-  await m.post('/payouts', {
-    ambassadorId: ambassadorId.value, periodMonth: month.value,
-    amount: Number(amount.value), notes: notes.value || null,
-  })
-  showAdd.value = false; amount.value = 0; notes.value = ''
-  await refresh()
+  try {
+    await m.post('/payouts', {
+      ambassadorId: ambassadorId.value, periodMonth: month.value,
+      amount: Number(amount.value), notes: notes.value || null,
+    })
+    showAdd.value = false; amount.value = 0; notes.value = ''
+    await refresh()
+    toast.success('Payout recorded')
+  } catch (e: any) {
+    toast.error(e?.data?.error?.message || 'Failed to record payout')
+  }
 }
 
 async function remove(id: number) {
-  if (!await confirm('Delete this payout?')) return
-  await m.del(`/payouts/${id}`); await refresh()
+  if (!await confirm('Delete this payout?', { tone: 'danger', confirmText: 'Delete' })) return
+  try {
+    await m.del(`/payouts/${id}`)
+    await refresh()
+    toast.success('Payout deleted')
+  } catch (e: any) {
+    toast.error(e?.data?.error?.message || 'Failed to delete payout')
+  }
 }
 </script>
 
