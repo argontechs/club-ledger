@@ -15,6 +15,13 @@
       "when": 1777468717193,
       "tag": "0001_overjoyed_cannonball",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1777469845376,
+      "tag": "0002_friendly_living_tribunal",
+      "breakpoints": true
     }
   ]
 }

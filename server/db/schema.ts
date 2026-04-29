@@ -1,6 +1,6 @@
 import {
   mysqlTable, int, varchar, text, datetime, date, decimal,
-  mysqlEnum, tinyint, primaryKey, index, char,
+  mysqlEnum, tinyint, primaryKey, index, char, json,
 } from 'drizzle-orm/mysql-core'
 import { sql } from 'drizzle-orm'
 
@@ -77,6 +77,8 @@ export const payouts = mysqlTable('payouts', {
   periodMonth: char('period_month', { length: 7 }).notNull(),
   amount: decimal('amount', { precision: 12, scale: 2 }).notNull(),
   notes: text('notes'),
+  receiptPaths: json('receipt_paths').$type<Array<{ path: string; name: string; size: number; mime: string }>>(),
+  payslipPath: varchar('payslip_path', { length: 500 }),
   paidAt: datetime('paid_at', { mode: 'date' }),
   createdBy: int('created_by').notNull(),
   ...ts(),
