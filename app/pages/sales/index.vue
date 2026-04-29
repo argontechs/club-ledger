@@ -1,15 +1,32 @@
 <script setup lang="ts">
 import { formatRM } from '~/utils/currency'
 import { formatDate, currentMonth } from '~/utils/dateFormat'
+import { useAuthStore } from '~/stores/auth'
+
+const auth = useAuthStore()
 
 const month = ref(currentMonth())
-const { data: rows, refresh } = useAPI<any[]>(() => `/sales?month=${month.value}`)
+const ambassadorFilter = ref<number | ''>('')
+const salesUrl = computed(() => {
+  const base = `/sales?month=${month.value}`
+  return ambassadorFilter.value ? `${base}&ambassador_id=${ambassadorFilter.value}` : base
+})
+const { data: rows, refresh } = useAPI<any[]>(() => salesUrl.value)
 const { data: ambassadors } = useAPI<any[]>('/ambassadors')
 
 const showCreate = ref(false)
 const m = useAPIMutation()
 const confirm = useConfirm()
 const toast = useToast()
+
+const ambassadorFilterOptions = computed(() => [
+  { value: '', label: 'All ambassadors' },
+  ...((ambassadors.value ?? []).map(a => ({ value: a.id, label: a.name }))),
+])
+
+async function openCreate() {
+  showCreate.value = true
+}
 
 async function onCreate(payload: any) {
   try {
@@ -42,14 +59,56 @@ async function voidSale(id: number) {
     toast.error(e?.data?.error?.message || 'Failed to void sale')
   }
 }
+
+async function bulkConfirmDrafts() {
+  const ambName = ambassadorFilter.value
+    ? ambassadors.value?.find(a => a.id === ambassadorFilter.value)?.name
+    : null
+  const scope = ambName ? ` for ${ambName}` : ''
+  if (!await confirm(
+    `Confirm all draft sales for ${month.value}${scope}?`,
+    { confirmText: 'Confirm all', tone: 'primary' },
+  )) return
+  try {
+    const body: any = { month: month.value }
+    if (ambassadorFilter.value) body.ambassadorId = ambassadorFilter.value
+    const r = await m.post<{ confirmed: number; failed: number; total: number }>(
+      '/sales/confirm-drafts',
+      body,
+    )
+    await refresh()
+    if (r.failed > 0) {
+      toast.info(`Confirmed ${r.confirmed} of ${r.total} (${r.failed} failed)`)
+    } else if (r.confirmed === 0) {
+      toast.info('No drafts to confirm')
+    } else {
+      toast.success(`Confirmed ${r.confirmed} draft(s)`)
+    }
+  } catch (e: any) {
+    toast.error(e?.data?.error?.message || 'Failed to confirm drafts')
+  }
+}
 </script>
 
 <template>
   <div class="space-y-5">
     <!-- Filter row -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-      <AppMonthPicker v-model="month" />
-      <AppButton class="w-full sm:w-auto" @click="showCreate = true">+ New sale</AppButton>
+      <div class="flex flex-col sm:flex-row gap-2 sm:items-center">
+        <AppMonthPicker v-model="month" />
+        <AppSelect v-model="ambassadorFilter" :options="ambassadorFilterOptions" />
+      </div>
+      <div class="flex flex-col sm:flex-row gap-2">
+        <AppButton
+          v-if="auth.isAdminOrOwner"
+          variant="secondary"
+          class="w-full sm:w-auto"
+          @click="bulkConfirmDrafts"
+        >
+          Confirm all drafts
+        </AppButton>
+        <AppButton class="w-full sm:w-auto" @click="openCreate">+ New sale</AppButton>
+      </div>
     </div>
 
     <AppTable :rows="rows ?? []" empty-text="No sales for this month">
@@ -79,7 +138,7 @@ async function voidSale(id: number) {
     </AppTable>
 
     <AppModal :open="showCreate" title="New sale" @close="showCreate = false">
-      <SaleForm v-if="ambassadors" :ambassadors="ambassadors" @submit="onCreate" />
+      <SaleForm v-if="ambassadors && showCreate" :ambassadors="ambassadors" @submit="onCreate" />
     </AppModal>
   </div>
 </template>
