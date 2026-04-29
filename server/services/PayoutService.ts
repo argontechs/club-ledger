@@ -8,6 +8,7 @@ const CreateSchema = z.object({
   periodMonth: z.string().regex(/^\d{4}-\d{2}$/),
   amount: z.number().nonnegative(),
   notes: z.string().nullish(),
+  markPaid: z.boolean().optional(),
 })
 
 export const PayoutService = {
@@ -16,10 +17,28 @@ export const PayoutService = {
     const v = CreateSchema.parse(body)
     await assertNotOwnerProtected(actor, { kind: 'payout', ambassadorId: v.ambassadorId })
     const r = await PayoutRepo.insert({
-      ambassadorId: v.ambassadorId, periodMonth: v.periodMonth,
-      amount: v.amount.toFixed(2), notes: v.notes ?? null, createdBy: actor.id,
+      ambassadorId: v.ambassadorId,
+      periodMonth: v.periodMonth,
+      amount: v.amount.toFixed(2),
+      notes: v.notes ?? null,
+      createdBy: actor.id,
+      paidAt: v.markPaid ? new Date() : null,
     })
     return await PayoutRepo.findById((r as any)[0].insertId)
+  },
+  async markPaid(actor: Actor, id: number) {
+    const p = await PayoutRepo.findById(id)
+    if (!p) throw ApiError.notFound('Payout')
+    await assertNotOwnerProtected(actor, { kind: 'payout', ambassadorId: p.ambassadorId })
+    await PayoutRepo.update(id, { paidAt: new Date() })
+    return await PayoutRepo.findById(id)
+  },
+  async markUnpaid(actor: Actor, id: number) {
+    const p = await PayoutRepo.findById(id)
+    if (!p) throw ApiError.notFound('Payout')
+    await assertNotOwnerProtected(actor, { kind: 'payout', ambassadorId: p.ambassadorId })
+    await PayoutRepo.update(id, { paidAt: null })
+    return await PayoutRepo.findById(id)
   },
   async remove(actor: Actor, id: number) {
     const p = await PayoutRepo.findById(id)
