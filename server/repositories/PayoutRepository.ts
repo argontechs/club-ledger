@@ -12,7 +12,7 @@ export const PayoutRepo = {
   insert(values: { ambassadorId: number; periodMonth: string; amount: string; notes?: string | null; createdBy: number; paidAt?: Date | null }) {
     return useDB().insert(schema.payouts).values({ ...values, paidAt: values.paidAt ?? null })
   },
-  update(id: number, patch: Partial<{ amount: string; notes: string | null; paidAt: Date | null }>) {
+  update(id: number, patch: Partial<{ amount: string; notes: string | null; paidAt: Date | null; receiptPaths: any; payslipPath: string | null }>) {
     return useDB().update(schema.payouts).set({ ...patch, updatedAt: new Date() }).where(eq(schema.payouts.id, id))
   },
   findById(id: number) {
