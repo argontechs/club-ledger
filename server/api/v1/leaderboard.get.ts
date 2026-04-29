@@ -27,5 +27,6 @@ export default defineEventHandler(async (event) => {
 
   return rows
     .map(r => ({ ...r, totalSales: Number(r.totalSales), saleCount: Number(r.saleCount) }))
+    .filter(r => r.saleCount > 0)
     .sort((a, b) => b.totalSales - a.totalSales)
 })

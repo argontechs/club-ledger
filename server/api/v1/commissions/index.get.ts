@@ -8,8 +8,14 @@ export default defineEventHandler(async (event) => {
   const actor = event.context.user!
   const all = await loadCommissions(month)
 
+  // Hide users with zero activity AND zero bonus — they don't need a row.
+  // Always show the actor's own row (so they see their state for the month).
+  const visible = all.filter(r =>
+    r.userId === actor.id || r.ownSales > 0 || r.bonus > 0,
+  )
+
   if (actor.roleName === 'leader' || actor.roleName === 'ambassador') {
-    return all.filter(r => r.userId === actor.id)
+    return visible.filter(r => r.userId === actor.id)
   }
-  return all
+  return visible
 })

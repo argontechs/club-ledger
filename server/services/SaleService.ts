@@ -26,7 +26,10 @@ export const SaleService = {
     return s
   },
 
-  async create(actor: Actor & { id: number }, body: unknown) {
+  async create(actor: Actor & { id: number; roleName: string }, body: unknown) {
+    if (actor.roleName !== 'owner' && actor.roleName !== 'admin') {
+      throw ApiError.forbidden('Insufficient role')
+    }
     const v = CreateSchema.parse(body)
     const amb = await AmbassadorRepo.findById(v.ambassadorId)
     if (!amb || amb.deletedAt) throw ApiError.validation({ ambassadorId: 'Unknown ambassador' })
@@ -40,7 +43,10 @@ export const SaleService = {
     return await SaleRepo.findById((r as any)[0].insertId)
   },
 
-  async update(actor: Actor, id: number, body: unknown) {
+  async update(actor: Actor & { roleName: string }, id: number, body: unknown) {
+    if (actor.roleName !== 'owner' && actor.roleName !== 'admin') {
+      throw ApiError.forbidden('Insufficient role')
+    }
     const s = await this.get(id)
     if (s.status !== 'draft') throw ApiError.conflict('Only draft sales can be edited')
     await assertNotOwnerProtected(actor, { kind: 'sale', ambassadorId: s.ambassadorId })
@@ -56,7 +62,10 @@ export const SaleService = {
     return await this.get(id)
   },
 
-  async confirm(actor: Actor, id: number) {
+  async confirm(actor: Actor & { roleName: string }, id: number) {
+    if (actor.roleName !== 'owner' && actor.roleName !== 'admin') {
+      throw ApiError.forbidden('Insufficient role')
+    }
     const s = await this.get(id)
     if (s.status !== 'draft') throw ApiError.conflict('Only draft sales can be confirmed')
     await assertNotOwnerProtected(actor, { kind: 'sale', ambassadorId: s.ambassadorId })
@@ -72,7 +81,10 @@ export const SaleService = {
     return await this.get(id)
   },
 
-  async void(actor: Actor, id: number) {
+  async void(actor: Actor & { roleName: string }, id: number) {
+    if (actor.roleName !== 'owner' && actor.roleName !== 'admin') {
+      throw ApiError.forbidden('Insufficient role')
+    }
     const s = await this.get(id)
     if (s.status === 'voided') return s
     await assertNotOwnerProtected(actor, { kind: 'sale', ambassadorId: s.ambassadorId })

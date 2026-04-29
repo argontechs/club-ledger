@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm'
+import { eq, and, isNull } from 'drizzle-orm'
 import { useDB, schema } from '~~/server/db/client'
 import { verifyToken } from '~~/server/utils/jwt'
 import { ApiError } from '~~/server/utils/errors'
@@ -27,7 +27,7 @@ export default defineEventHandler(async (event) => {
   })
     .from(schema.users)
     .innerJoin(schema.roles, eq(schema.roles.id, schema.users.roleId))
-    .where(eq(schema.users.id, payload.sub))
+    .where(and(eq(schema.users.id, payload.sub), isNull(schema.users.deletedAt)))
     .limit(1)
   const user = rows[0]
   if (!user || !user.email) throw ApiError.unauthorized('User not found')

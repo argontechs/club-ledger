@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm'
+import { eq, and, isNull } from 'drizzle-orm'
 import { z } from 'zod'
 import { useDB, schema } from '~~/server/db/client'
 import { verifyPassword } from '~~/server/utils/password'
@@ -26,7 +26,7 @@ export async function login(body: unknown, jwtSecret: string) {
   })
     .from(schema.users)
     .innerJoin(schema.roles, eq(schema.roles.id, schema.users.roleId))
-    .where(eq(schema.users.email, email))
+    .where(and(eq(schema.users.email, email), isNull(schema.users.deletedAt)))
     .limit(1)
   const user = rows[0]
   if (!user) throw ApiError.unauthorized('Invalid credentials')

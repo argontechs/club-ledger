@@ -16,9 +16,16 @@ const CreateSchema = z.object({
 
 export const PayoutService = {
   list: PayoutRepo.list,
-  async create(actor: Actor & { id: number }, body: unknown) {
+  async create(actor: Actor & { id: number; roleName: string }, body: unknown) {
+    if (actor.roleName !== 'owner' && actor.roleName !== 'admin') {
+      throw ApiError.forbidden('Insufficient role')
+    }
     const v = CreateSchema.parse(body)
     await assertNotOwnerProtected(actor, { kind: 'payout', ambassadorId: v.ambassadorId })
+    const dups = await PayoutRepo.list({ ambassadorId: v.ambassadorId, month: v.periodMonth })
+    if (dups.length > 0) {
+      throw ApiError.conflict('A payout already exists for this ambassador and month')
+    }
     const r = await PayoutRepo.insert({
       ambassadorId: v.ambassadorId,
       periodMonth: v.periodMonth,
@@ -103,10 +110,16 @@ export const PayoutService = {
       })).min(1).max(100),
       markPaid: z.boolean().optional(),
     })
+    if ((actor as any).roleName !== 'owner' && (actor as any).roleName !== 'admin') {
+      throw ApiError.forbidden('Insufficient role')
+    }
     const v = Schema.parse(body)
     const created: any[] = []
     for (const item of v.items) {
       await assertNotOwnerProtected(actor, { kind: 'payout', ambassadorId: item.ambassadorId })
+      // Skip if already exists for this ambassador+month
+      const existing = await PayoutRepo.list({ ambassadorId: item.ambassadorId, month: item.periodMonth })
+      if (existing.length > 0) continue
       // Compute amount from commissions for that month for that ambassador
       const sales = await useDB().select().from(schema.sales)
         .where(and(

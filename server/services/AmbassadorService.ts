@@ -36,6 +36,9 @@ export const AmbassadorService = {
   },
 
   async create(actor: Actor, body: unknown) {
+    if (actor.roleName !== 'owner' && actor.roleName !== 'admin') {
+      throw ApiError.forbidden('Insufficient role')
+    }
     const v = parseOrThrow(CreateSchema, body)
     const r = await AmbassadorRepo.insert({
       name: v.name,
@@ -51,6 +54,9 @@ export const AmbassadorService = {
   },
 
   async update(actor: Actor, id: number, body: unknown) {
+    if (actor.roleName !== 'owner' && actor.roleName !== 'admin') {
+      throw ApiError.forbidden('Insufficient role')
+    }
     const a = await this.get(id)
     await assertNotOwnerProtected(actor, { kind: 'ambassador', ambassadorId: id })
     if (a.isProtected && actor.roleName !== 'owner') throw ApiError.forbidden('Protected ambassador')
@@ -69,6 +75,9 @@ export const AmbassadorService = {
   },
 
   async remove(actor: Actor, id: number) {
+    if (actor.roleName !== 'owner' && actor.roleName !== 'admin') {
+      throw ApiError.forbidden('Insufficient role')
+    }
     const a = await this.get(id)
     await assertNotOwnerProtected(actor, { kind: 'ambassador', ambassadorId: id })
     if (a.isProtected) throw ApiError.conflict('Protected ambassador cannot be deleted')
