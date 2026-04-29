@@ -5,6 +5,35 @@ import { currentMonth } from '~/utils/dateFormat'
 const month = ref(currentMonth())
 const type = ref<'all' | 'Table' | 'BGO'>('all')
 const { data: rows } = useAPI<any[]>(() => `/leaderboard?month=${month.value}&type=${type.value}`)
+const { data: monthList } = useAPI<string[]>('/leaderboard/months')
+
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+function fallbackMonths(): string[] {
+  const out: string[] = []
+  const d = new Date()
+  for (let i = 0; i < 6; i++) {
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    out.push(`${y}-${m}`)
+    d.setMonth(d.getMonth() - 1)
+  }
+  return out
+}
+
+const pillMonths = computed<string[]>(() => {
+  const list = (monthList.value && monthList.value.length > 0) ? monthList.value : fallbackMonths()
+  // Ensure current selection is always present
+  if (month.value && !list.includes(month.value)) return [month.value, ...list]
+  return list.slice(0, 12)
+})
+
+function pillLabel(m: string) {
+  const [y, mo] = m.split('-').map(Number)
+  return `${MONTH_NAMES[mo - 1]} ${String(y).slice(2)}`
+}
+
+function selectMonth(m: string) { month.value = m }
 
 const medalFor = (i: number) => i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : null
 const medalClass = (i: number) => {
@@ -18,17 +47,40 @@ const medalClass = (i: number) => {
 
 <template>
   <div class="space-y-5">
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-      <div class="flex flex-col sm:flex-row gap-2">
-        <AppMonthPicker v-model="month" />
-        <select
-          v-model="type"
-          class="w-full sm:w-auto px-3 py-1.5 border border-[#E0E0E0] rounded-lg text-[12px] bg-white text-[#0A0A0A] outline-none focus:border-[#E11D48] focus:ring-2 focus:ring-[#E11D48]/10 transition-colors"
+    <!-- Pill month bar + type filter -->
+    <div class="flex flex-col gap-3">
+      <div class="flex flex-wrap items-center gap-1.5">
+        <span class="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mr-2">Month</span>
+        <button
+          v-for="m in pillMonths"
+          :key="m"
+          type="button"
+          class="px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors border"
+          :class="month === m
+            ? 'bg-[#E11D48] text-white border-[#E11D48]'
+            : 'bg-white text-gray-600 border-[#E0E0E0] hover:border-[#E11D48]/40 hover:text-[#BE123C]'"
+          @click="selectMonth(m)"
         >
-          <option value="all">All</option>
-          <option value="Table">Table</option>
-          <option value="BGO">BGO</option>
-        </select>
+          {{ pillLabel(m) }}
+        </button>
+      </div>
+
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div class="flex flex-wrap items-center gap-1.5">
+          <span class="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mr-2">Type</span>
+          <button
+            v-for="opt in [{ value: 'all', label: 'All' }, { value: 'Table', label: 'Table' }, { value: 'BGO', label: 'BGO' }]"
+            :key="opt.value"
+            type="button"
+            class="px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors border"
+            :class="type === opt.value
+              ? 'bg-[#0A0A0A] text-white border-[#0A0A0A]'
+              : 'bg-white text-gray-600 border-[#E0E0E0] hover:border-gray-400'"
+            @click="type = opt.value as any"
+          >
+            {{ opt.label }}
+          </button>
+        </div>
       </div>
     </div>
 
