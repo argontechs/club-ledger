@@ -2,7 +2,10 @@
 import { formatRM } from '~/utils/currency'
 import { formatDate } from '~/utils/dateFormat'
 import { useAuthStore } from '~/stores/auth'
-import { ArrowUpTrayIcon, DocumentArrowDownIcon, CheckCircleIcon } from '@heroicons/vue/24/outline'
+import {
+  ArrowUpTrayIcon, DocumentArrowDownIcon, CheckCircleIcon,
+  DocumentTextIcon, XMarkIcon,
+} from '@heroicons/vue/24/outline'
 definePageMeta({ middleware: ['role'] })
 
 const { data: ambassadors } = useAPI<any[]>('/ambassadors')
@@ -69,23 +72,58 @@ const totalsMismatch = computed(() =>
   <div class="space-y-5 max-w-4xl">
     <!-- Step 1: drop -->
     <div class="bg-white border border-[#E8E8EC] rounded-2xl p-5 shadow-sm">
-      <h3 class="text-[12px] font-bold uppercase tracking-wide text-gray-400 mb-3">Step 1 · Upload PDF</h3>
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-[12px] font-bold uppercase tracking-wide text-gray-400">Step 1 · Upload PDF</h3>
+        <p class="text-[11px] text-gray-400 hidden sm:block">PDF only · max 20MB</p>
+      </div>
+
+      <!-- Empty state: dropzone -->
       <label
-        class="flex flex-col items-center justify-center gap-2 px-4 py-8 border-2 border-dashed rounded-xl cursor-pointer transition-colors"
-        :class="isDragging ? 'border-[#E11D48] bg-[#E11D4808]' : 'border-[#E0E0E0] hover:border-[#E11D48]/50 bg-[#FAFAFA]'"
+        v-if="!file"
+        class="flex flex-col items-center justify-center gap-3 px-4 py-12 border-2 border-dashed rounded-xl cursor-pointer transition-colors"
+        :class="isDragging ? 'border-[#E11D48] bg-[#E11D4808]' : 'border-[#E0E0E0] hover:border-[#E11D48] hover:bg-[#FAFAFA]'"
         @dragover.prevent="isDragging = true"
         @dragleave.prevent="isDragging = false"
         @drop.prevent="onDrop"
       >
-        <ArrowUpTrayIcon class="w-6 h-6 text-gray-400" />
-        <p class="text-[13px] text-gray-600">
-          <span class="font-semibold text-[#BE123C]">Click to choose</span> or drag &amp; drop a PDF here
-        </p>
-        <p v-if="file" class="text-[12px] text-gray-500 truncate max-w-full">{{ file.name }}</p>
+        <div class="w-12 h-12 rounded-full bg-[#E11D481A] flex items-center justify-center">
+          <ArrowUpTrayIcon class="w-6 h-6 text-[#E11D48]" />
+        </div>
+        <div class="text-center">
+          <p class="text-[14px] font-semibold text-[#0A0A0A]">
+            <span class="text-[#BE123C]">Click to choose</span>
+            <span class="text-gray-600"> or drag &amp; drop</span>
+          </p>
+          <p class="text-[12px] text-gray-400 mt-1">Drop your Nono Club POS export here</p>
+        </div>
         <input type="file" accept="application/pdf" class="hidden" @change="onPickFile">
       </label>
-      <div class="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2">
-        <p v-if="error" class="text-[12px] text-red-600 sm:mr-auto">{{ error }}</p>
+
+      <!-- Selected file state -->
+      <div
+        v-else
+        class="flex items-center gap-3 px-4 py-4 border border-[#E0E0E0] rounded-xl bg-[#FAFAFA]"
+      >
+        <div class="w-10 h-10 rounded-lg bg-[#E11D481A] flex items-center justify-center shrink-0">
+          <DocumentTextIcon class="w-5 h-5 text-[#E11D48]" />
+        </div>
+        <div class="min-w-0 flex-1">
+          <p class="text-[13px] font-semibold text-[#0A0A0A] truncate">{{ file.name }}</p>
+          <p class="text-[11px] text-gray-500">{{ (file.size / 1024).toFixed(0) }} KB · ready to parse</p>
+        </div>
+        <button
+          type="button"
+          class="w-8 h-8 rounded-lg hover:bg-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-700 shrink-0"
+          aria-label="Remove file"
+          @click="file = null; dryRun = null; result = null; error = ''"
+        >
+          <XMarkIcon class="w-4 h-4" />
+        </button>
+      </div>
+
+      <p v-if="error" class="mt-3 text-[12px] text-red-600">{{ error }}</p>
+
+      <div class="mt-4 flex flex-col sm:flex-row sm:justify-end gap-2">
         <AppButton class="w-full sm:w-auto" :disabled="!file" @click="parse">
           <DocumentArrowDownIcon class="w-4 h-4" />
           Parse PDF
