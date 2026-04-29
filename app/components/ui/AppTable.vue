@@ -5,7 +5,7 @@ defineProps<{ rows: T[]; loading?: boolean; emptyText?: string }>()
 <template>
   <div class="bg-white rounded-2xl border border-[#E8E8EC] shadow-sm overflow-hidden">
     <div class="overflow-x-auto">
-      <table class="w-full">
+      <table class="w-full min-w-[640px]">
         <thead>
           <tr class="bg-[#FAFAFA] border-b border-[#F0F0F0] text-left">
             <slot name="head" />
