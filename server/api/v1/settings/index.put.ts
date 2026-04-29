@@ -7,6 +7,11 @@ const Schema = z.object({
   currency: z.string().optional(),
   currency_symbol: z.string().optional(),
   venue_name: z.string().optional(),
+  company_name: z.string().optional(),
+  company_address: z.string().optional(),
+  company_registration: z.string().optional(),
+  company_phone: z.string().optional(),
+  company_email: z.string().optional(),
 })
 
 export default defineEventHandler(async (event) => {
