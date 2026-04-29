@@ -79,4 +79,19 @@ export const SaleService = {
     await SaleRepo.update(id, { status: 'voided', voidedAt: new Date() } as any)
     return await this.get(id)
   },
+
+  async confirmDrafts(actor: Actor, filter: { ambassadorId?: number; month?: string }) {
+    const all = await SaleRepo.list({ ...filter, status: 'draft' })
+    let confirmed = 0
+    let failed = 0
+    for (const s of all) {
+      try {
+        await this.confirm(actor, s.id)
+        confirmed++
+      } catch {
+        failed++
+      }
+    }
+    return { confirmed, failed, total: all.length }
+  },
 }
