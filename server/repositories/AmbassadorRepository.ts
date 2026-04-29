@@ -14,13 +14,37 @@ export const AmbassadorRepo = {
     return useDB().select().from(schema.ambassadors).where(eq(schema.ambassadors.id, id)).limit(1)
       .then(rows => rows[0])
   },
-  insert(values: { name: string; teamId?: number | null; commissionRate?: string }) {
+  insert(values: {
+    name: string
+    fullName?: string | null
+    ic?: string | null
+    teamId?: number | null
+    commissionRate?: string
+    bankName?: string | null
+    bankAccountNumber?: string | null
+    bankOwnerName?: string | null
+  }) {
     return useDB().insert(schema.ambassadors).values({
-      name: values.name, teamId: values.teamId ?? null,
+      name: values.name,
+      fullName: values.fullName ?? null,
+      ic: values.ic ?? null,
+      teamId: values.teamId ?? null,
       commissionRate: values.commissionRate ?? '8.00',
+      bankName: values.bankName ?? null,
+      bankAccountNumber: values.bankAccountNumber ?? null,
+      bankOwnerName: values.bankOwnerName ?? null,
     })
   },
-  update(id: number, patch: Partial<{ name: string; teamId: number | null; commissionRate: string }>) {
+  update(id: number, patch: Partial<{
+    name: string
+    fullName: string | null
+    ic: string | null
+    teamId: number | null
+    commissionRate: string
+    bankName: string | null
+    bankAccountNumber: string | null
+    bankOwnerName: string | null
+  }>) {
     return useDB().update(schema.ambassadors).set({ ...patch, updatedAt: new Date() }).where(eq(schema.ambassadors.id, id))
   },
   softDelete(id: number) {

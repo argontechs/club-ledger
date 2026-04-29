@@ -26,9 +26,14 @@ export const teams = mysqlTable('teams', {
 export const ambassadors = mysqlTable('ambassadors', {
   id: int('id').autoincrement().primaryKey(),
   name: varchar('name', { length: 120 }).notNull(),
+  fullName: varchar('full_name', { length: 200 }),
+  ic: varchar('ic', { length: 60 }),
   teamId: int('team_id'),
   commissionRate: decimal('commission_rate', { precision: 5, scale: 2 }).default('8.00').notNull(),
   isProtected: tinyint('is_protected').default(0).notNull(),
+  bankName: varchar('bank_name', { length: 120 }),
+  bankAccountNumber: varchar('bank_account_number', { length: 60 }),
+  bankOwnerName: varchar('bank_owner_name', { length: 200 }),
   ...ts(),
   ...softDelete(),
 })
