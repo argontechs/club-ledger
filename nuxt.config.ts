@@ -26,4 +26,5 @@ export default defineNuxtConfig({
     plugins: [tailwindcss()],
     server: { hmr: { overlay: false } },
   },
+  routeRules: { '/**': { appMiddleware: ['auth'] } },
 })
