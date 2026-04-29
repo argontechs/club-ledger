@@ -1,6 +1,12 @@
 <script setup lang="ts">
-defineProps<{ open: boolean; title?: string }>()
+const props = withDefaults(defineProps<{ open: boolean; title?: string; size?: 'md' | 'lg' }>(), {
+  size: 'md',
+})
 defineEmits<{ (e: 'close'): void }>()
+
+const sizeClass = computed(() =>
+  props.size === 'lg' ? 'md:max-w-2xl' : 'md:max-w-lg',
+)
 </script>
 
 <template>
@@ -10,7 +16,10 @@ defineEmits<{ (e: 'close'): void }>()
       class="fixed inset-0 z-50 bg-black/40 flex md:items-center md:justify-center md:p-4"
       @click.self="$emit('close')"
     >
-      <div class="bg-white shadow-xl w-full h-full md:h-auto md:max-w-lg md:max-h-[90vh] md:rounded-2xl overflow-hidden flex flex-col">
+      <div
+        class="bg-white shadow-xl w-full h-full md:h-auto md:max-h-[90vh] md:rounded-2xl overflow-hidden flex flex-col"
+        :class="sizeClass"
+      >
         <div class="border-b border-[#F0F0F0] px-5 py-4 flex items-center justify-between shrink-0">
           <h3 class="font-semibold text-[15px] text-[#0A0A0A]">{{ title }}</h3>
           <button

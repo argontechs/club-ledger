@@ -12,22 +12,68 @@ const confirm = useConfirm()
 const toast = useToast()
 const showAdd = ref(false)
 const editing = ref<any | null>(null)
+const saving = ref(false)
 
 const defaultRate = computed(() => Number(settings.value?.default_commission_rate ?? 8))
-const form = ref<{ name: string; teamId: number | null; commissionRate: number }>(
-  { name: '', teamId: null, commissionRate: 8 })
 
-watch(showAdd, (v) => { if (v && !editing.value) form.value = { name: '', teamId: null, commissionRate: defaultRate.value } })
+type FormState = {
+  name: string
+  fullName: string
+  ic: string
+  teamId: number | null
+  commissionRate: number
+  bankName: string
+  bankAccountNumber: string
+  bankOwnerName: string
+}
+
+const blankForm = (): FormState => ({
+  name: '',
+  fullName: '',
+  ic: '',
+  teamId: null,
+  commissionRate: defaultRate.value,
+  bankName: '',
+  bankAccountNumber: '',
+  bankOwnerName: '',
+})
+
+const form = ref<FormState>(blankForm())
+
+watch(showAdd, (v) => { if (v && !editing.value) form.value = blankForm() })
 watch(editing, (v) => {
   if (v) {
-    form.value = { name: v.name, teamId: v.teamId, commissionRate: Number(v.commissionRate) }
+    form.value = {
+      name: v.name ?? '',
+      fullName: v.fullName ?? '',
+      ic: v.ic ?? '',
+      teamId: v.teamId,
+      commissionRate: Number(v.commissionRate),
+      bankName: v.bankName ?? '',
+      bankAccountNumber: v.bankAccountNumber ?? '',
+      bankOwnerName: v.bankOwnerName ?? '',
+    }
     showAdd.value = true
   }
 })
 
 async function save() {
-  const payload = { name: form.value.name, teamId: form.value.teamId, commissionRate: Number(form.value.commissionRate) }
+  if (!form.value.name.trim()) {
+    toast.error('Name is required')
+    return
+  }
+  const payload = {
+    name: form.value.name.trim(),
+    fullName: form.value.fullName.trim() || null,
+    ic: form.value.ic.trim() || null,
+    teamId: form.value.teamId,
+    commissionRate: Number(form.value.commissionRate),
+    bankName: form.value.bankName.trim() || null,
+    bankAccountNumber: form.value.bankAccountNumber.trim() || null,
+    bankOwnerName: form.value.bankOwnerName.trim() || null,
+  }
   const wasEditing = !!editing.value
+  saving.value = true
   try {
     if (editing.value) await m.put(`/ambassadors/${editing.value.id}`, payload)
     else await m.post('/ambassadors', payload)
@@ -36,6 +82,8 @@ async function save() {
     toast.success(wasEditing ? 'Ambassador updated' : 'Ambassador created')
   } catch (e: any) {
     toast.error(e?.data?.error?.message || 'Failed to save ambassador')
+  } finally {
+    saving.value = false
   }
 }
 
@@ -90,19 +138,55 @@ const isAdmin = computed(() => auth.user?.role === 'admin')
       </template>
     </AppTable>
 
-    <AppModal :open="showAdd" :title="editing ? 'Edit ambassador' : 'New ambassador'" @close="closeModal">
-      <div class="space-y-3">
-        <AppInput v-model="form.name" label="Name" />
-        <AppSelect
-          v-model="form.teamId"
-          :options="[{ value: '', label: '— No team —' }, ...(teams ?? []).map(t => ({ value: t.id, label: t.name }))]"
-          label="Team"
-        />
-        <AppInput v-model="form.commissionRate" type="number" label="Commission rate (%)" />
+    <AppModal
+      :open="showAdd"
+      :title="editing ? 'Edit ambassador' : 'New ambassador'"
+      size="lg"
+      @close="closeModal"
+    >
+      <div class="space-y-6">
+        <!-- Personal -->
+        <section class="space-y-3">
+          <h4 class="text-[11px] font-bold uppercase tracking-wide text-gray-400">Personal</h4>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <AppInput v-model="form.name" label="Name (alias)" placeholder="e.g. Johnny" />
+            <AppInput v-model="form.fullName" label="Full legal name" placeholder="Optional" />
+            <div class="md:col-span-2">
+              <AppInput v-model="form.ic" label="IC / Passport" placeholder="Optional" />
+            </div>
+          </div>
+        </section>
+
+        <!-- Assignment -->
+        <section class="space-y-3">
+          <h4 class="text-[11px] font-bold uppercase tracking-wide text-gray-400">Assignment</h4>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <AppSelect
+              v-model="form.teamId"
+              :options="[{ value: '', label: '— No team —' }, ...(teams ?? []).map(t => ({ value: t.id, label: t.name }))]"
+              label="Team"
+            />
+            <AppInput v-model="form.commissionRate" type="number" label="Commission rate (%)" />
+          </div>
+        </section>
+
+        <!-- Bank details -->
+        <section class="space-y-3">
+          <h4 class="text-[11px] font-bold uppercase tracking-wide text-gray-400">Bank details</h4>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <AppInput v-model="form.bankName" label="Bank name" placeholder="e.g. Maybank" />
+            <AppInput v-model="form.bankAccountNumber" label="Account number" placeholder="Optional" />
+            <div class="md:col-span-2">
+              <AppInput v-model="form.bankOwnerName" label="Account holder name" placeholder="Optional" />
+            </div>
+          </div>
+        </section>
       </div>
       <template #footer>
         <AppButton variant="secondary" @click="closeModal">Cancel</AppButton>
-        <AppButton @click="save">{{ editing ? 'Save changes' : 'Create' }}</AppButton>
+        <AppButton :disabled="saving || !form.name.trim()" @click="save">
+          {{ saving ? 'Saving…' : (editing ? 'Save changes' : 'Create') }}
+        </AppButton>
       </template>
     </AppModal>
   </div>
