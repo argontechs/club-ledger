@@ -1,18 +1,24 @@
 <script setup lang="ts">
 import { formatRM } from '~/utils/currency'
-import { formatDate, currentMonth } from '~/utils/dateFormat'
+import { formatDate } from '~/utils/dateFormat'
 import { useAuthStore } from '~/stores/auth'
 
 const auth = useAuthStore()
 
-const month = ref(currentMonth())
+const month = ref('')
 const ambassadorFilter = ref<number | ''>('')
 const salesUrl = computed(() => {
+  if (!month.value) return ''
   const base = `/sales?month=${month.value}`
   return ambassadorFilter.value ? `${base}&ambassador_id=${ambassadorFilter.value}` : base
 })
 const { data: rows, refresh } = useAPI<any[]>(() => salesUrl.value)
 const { data: ambassadors } = useAPI<any[]>('/ambassadors')
+const { data: monthList } = useAPI<string[]>('/sales/months')
+
+watch(monthList, (list) => {
+  if (list && list.length && !month.value) month.value = list[0]
+}, { immediate: true })
 
 const showCreate = ref(false)
 const m = useAPIMutation()
@@ -93,21 +99,24 @@ async function bulkConfirmDrafts() {
 <template>
   <div class="space-y-5">
     <!-- Filter row -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-      <div class="flex flex-col sm:flex-row gap-2 sm:items-center">
-        <AppMonthPicker v-model="month" />
-        <AppSelect v-model="ambassadorFilter" :options="ambassadorFilterOptions" />
+    <div class="flex flex-col gap-3">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <AppMonthPills v-model="month" :months="monthList ?? []" label="Month" empty-text="No sales recorded yet" />
+        <div class="flex flex-col sm:flex-row gap-2">
+          <AppButton
+            v-if="auth.isAdminOrOwner"
+            variant="secondary"
+            class="w-full sm:w-auto"
+            @click="bulkConfirmDrafts"
+          >
+            Confirm all drafts
+          </AppButton>
+          <AppButton class="w-full sm:w-auto" @click="openCreate">+ New sale</AppButton>
+        </div>
       </div>
-      <div class="flex flex-col sm:flex-row gap-2">
-        <AppButton
-          v-if="auth.isAdminOrOwner"
-          variant="secondary"
-          class="w-full sm:w-auto"
-          @click="bulkConfirmDrafts"
-        >
-          Confirm all drafts
-        </AppButton>
-        <AppButton class="w-full sm:w-auto" @click="openCreate">+ New sale</AppButton>
+      <div class="flex flex-col sm:flex-row gap-2 sm:items-center">
+        <span class="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Ambassador</span>
+        <AppSelect v-model="ambassadorFilter" :options="ambassadorFilterOptions" />
       </div>
     </div>
 

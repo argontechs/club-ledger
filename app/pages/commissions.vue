@@ -1,9 +1,13 @@
 <script setup lang="ts">
 import { formatRM } from '~/utils/currency'
-import { currentMonth } from '~/utils/dateFormat'
 
-const month = ref(currentMonth())
-const { data: rows } = useAPI<any[]>(() => `/commissions?month=${month.value}`)
+const month = ref('')
+const { data: monthList } = useAPI<string[]>('/commissions/months')
+const { data: rows } = useAPI<any[]>(() => month.value ? `/commissions?month=${month.value}` : '')
+
+watch(monthList, (list) => {
+  if (list && list.length && !month.value) month.value = list[0]
+}, { immediate: true })
 
 const roleTone = (r: string) => {
   if (r === 'owner' || r === 'admin') return 'rose'
@@ -14,9 +18,11 @@ const roleTone = (r: string) => {
 
 <template>
   <div class="space-y-5">
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-      <p class="text-[13px] text-gray-400">Commissions for <span class="text-gray-600 font-semibold">{{ month }}</span></p>
-      <AppMonthPicker v-model="month" />
+    <div class="flex flex-col gap-3">
+      <p class="text-[13px] text-gray-400">
+        Commissions for <span class="text-gray-600 font-semibold">{{ month || '—' }}</span>
+      </p>
+      <AppMonthPills v-model="month" :months="monthList ?? []" label="Month" empty-text="No sales recorded yet" />
     </div>
 
     <AppTable :rows="rows ?? []" empty-text="No data">
