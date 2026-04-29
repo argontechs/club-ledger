@@ -26,3 +26,6 @@ coverage
 /docs
 *.pdf
 !tests/fixtures/*.pdf
+
+# Local file storage (receipts, payslips)
+.storage
