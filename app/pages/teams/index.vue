@@ -2,28 +2,43 @@
 definePageMeta({ middleware: ['role'] })
 const { data: rows, refresh } = useAPI<any[]>('/teams')
 const m = useAPIMutation()
+const confirm = useConfirm()
 const newName = ref('')
 
 async function add() {
-  if (!newName.value) return
-  await m.post('/teams', { name: newName.value })
+  if (!newName.value.trim()) return
+  await m.post('/teams', { name: newName.value.trim() })
   newName.value = ''
   await refresh()
 }
-async function remove(id: number) { await m.del(`/teams/${id}`); await refresh() }
+async function remove(id: number, name: string) {
+  if (!await confirm(`Delete team "${name}"?`)) return
+  await m.del(`/teams/${id}`); await refresh()
+}
 </script>
+
 <template>
-  <div class="space-y-4">
-    <h1 class="text-xl font-semibold">Teams</h1>
-    <div class="flex gap-2">
-      <AppInput v-model="newName" placeholder="New team name" />
-      <AppButton @click="add">Add</AppButton>
+  <div class="space-y-5 max-w-3xl">
+    <div class="bg-white border border-[#E8E8EC] rounded-2xl p-5 shadow-sm">
+      <h3 class="text-[12px] font-bold uppercase tracking-wide text-gray-400 mb-3">Add team</h3>
+      <div class="flex gap-2">
+        <div class="flex-1">
+          <AppInput v-model="newName" placeholder="e.g. Floor A" />
+        </div>
+        <AppButton :disabled="!newName.trim()" @click="add">Add</AppButton>
+      </div>
     </div>
-    <AppTable :rows="rows ?? []" empty-text="None">
-      <template #head><th class="p-2">Name</th><th class="p-2"></th></template>
+
+    <AppTable :rows="rows ?? []" empty-text="No teams yet">
+      <template #head>
+        <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-gray-300">Name</th>
+        <th class="px-4 py-2.5" />
+      </template>
       <template #row="{ row }">
-        <td class="p-2">{{ row.name }}</td>
-        <td class="p-2 text-right"><AppButton variant="danger" @click="remove(row.id)">Delete</AppButton></td>
+        <td class="px-4 py-3 text-[13px] font-medium text-[#0A0A0A]">{{ row.name }}</td>
+        <td class="px-4 py-3 text-right">
+          <AppButton size="sm" variant="danger" @click="remove(row.id, row.name)">Delete</AppButton>
+        </td>
       </template>
     </AppTable>
   </div>

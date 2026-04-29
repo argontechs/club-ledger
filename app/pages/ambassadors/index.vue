@@ -16,8 +16,13 @@ const defaultRate = computed(() => Number(settings.value?.default_commission_rat
 const form = ref<{ name: string; teamId: number | null; commissionRate: number }>(
   { name: '', teamId: null, commissionRate: 8 })
 
-watch(showAdd, (v) => { if (v) form.value = { name: '', teamId: null, commissionRate: defaultRate.value } })
-watch(editing, (v) => { if (v) form.value = { name: v.name, teamId: v.teamId, commissionRate: Number(v.commissionRate) } })
+watch(showAdd, (v) => { if (v && !editing.value) form.value = { name: '', teamId: null, commissionRate: defaultRate.value } })
+watch(editing, (v) => {
+  if (v) {
+    form.value = { name: v.name, teamId: v.teamId, commissionRate: Number(v.commissionRate) }
+    showAdd.value = true
+  }
+})
 
 async function save() {
   const payload = { name: form.value.name, teamId: form.value.teamId, commissionRate: Number(form.value.commissionRate) }
@@ -25,6 +30,11 @@ async function save() {
   else await m.post('/ambassadors', payload)
   showAdd.value = false; editing.value = null
   await refresh()
+}
+
+function closeModal() {
+  showAdd.value = false
+  editing.value = null
 }
 
 async function remove(row: any) {
@@ -35,40 +45,52 @@ async function remove(row: any) {
 function isOwnerProtected(row: any) { return row.name === 'Johnny' }
 const isAdmin = computed(() => auth.user?.role === 'admin')
 </script>
+
 <template>
-  <div class="space-y-4">
-    <div class="flex items-center justify-between">
-      <h1 class="text-xl font-semibold">Ambassadors</h1>
+  <div class="space-y-5">
+    <div class="flex items-center justify-end">
       <AppButton @click="showAdd = true">+ New ambassador</AppButton>
     </div>
 
-    <AppTable :rows="rows ?? []" empty-text="None">
+    <AppTable :rows="rows ?? []" empty-text="No ambassadors yet">
       <template #head>
-        <th class="p-2">Name</th><th class="p-2">Team</th>
-        <th class="p-2 text-right">Rate</th><th class="p-2"></th>
+        <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-gray-300">Name</th>
+        <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-gray-300">Team</th>
+        <th class="px-4 py-2.5 text-right text-[10px] font-bold uppercase tracking-wide text-gray-300">Rate</th>
+        <th class="px-4 py-2.5" />
       </template>
       <template #row="{ row }">
-        <td class="p-2">{{ row.name }} <span v-if="row.isProtected" class="text-xs text-slate-400">(protected)</span></td>
-        <td class="p-2">{{ teams?.find(t => t.id === row.teamId)?.name ?? '-' }}</td>
-        <td class="p-2 text-right">{{ row.commissionRate }}%</td>
-        <td class="p-2 text-right space-x-2">
-          <template v-if="!(isAdmin && isOwnerProtected(row))">
-            <AppButton variant="secondary" @click="editing = row; showAdd = true">Edit</AppButton>
-            <AppButton variant="danger" :disabled="row.isProtected" @click="remove(row)">Delete</AppButton>
-          </template>
+        <td class="px-4 py-3 text-[13px] font-medium text-[#0A0A0A]">
+          {{ row.name }}
+          <AppBadge v-if="row.isProtected" tone="slate" class="ml-2">protected</AppBadge>
+        </td>
+        <td class="px-4 py-3 text-[13px] text-gray-500">
+          {{ teams?.find(t => t.id === row.teamId)?.name ?? '—' }}
+        </td>
+        <td class="px-4 py-3 text-[13px] text-right font-semibold text-[#0A0A0A]">{{ row.commissionRate }}%</td>
+        <td class="px-4 py-3 text-right">
+          <div v-if="!(isAdmin && isOwnerProtected(row))" class="inline-flex gap-1.5">
+            <AppButton size="sm" variant="secondary" @click="editing = row">Edit</AppButton>
+            <AppButton size="sm" variant="danger" :disabled="row.isProtected" @click="remove(row)">Delete</AppButton>
+          </div>
         </td>
       </template>
     </AppTable>
 
-    <AppModal :open="showAdd" :title="editing ? 'Edit ambassador' : 'New ambassador'" @close="showAdd = false; editing = null">
+    <AppModal :open="showAdd" :title="editing ? 'Edit ambassador' : 'New ambassador'" @close="closeModal">
       <div class="space-y-3">
         <AppInput v-model="form.name" label="Name" />
-        <AppSelect v-model="form.teamId"
+        <AppSelect
+          v-model="form.teamId"
           :options="[{ value: '', label: '— No team —' }, ...(teams ?? []).map(t => ({ value: t.id, label: t.name }))]"
-          label="Team" />
+          label="Team"
+        />
         <AppInput v-model="form.commissionRate" type="number" label="Commission rate (%)" />
-        <AppButton @click="save">Save</AppButton>
       </div>
+      <template #footer>
+        <AppButton variant="secondary" @click="closeModal">Cancel</AppButton>
+        <AppButton @click="save">{{ editing ? 'Save changes' : 'Create' }}</AppButton>
+      </template>
     </AppModal>
   </div>
 </template>
