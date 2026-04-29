@@ -1,4 +1,6 @@
 <script setup lang="ts" generic="T">
+import { InboxIcon } from '@heroicons/vue/24/outline'
+
 defineProps<{ rows: T[]; loading?: boolean; emptyText?: string }>()
 </script>
 
@@ -20,7 +22,12 @@ defineProps<{ rows: T[]; loading?: boolean; emptyText?: string }>()
             </tr>
           </template>
           <tr v-else-if="rows.length === 0">
-            <td colspan="999" class="px-4 py-8 text-center text-[13px] text-gray-400">{{ emptyText ?? 'No data' }}</td>
+            <td colspan="999" class="p-12 text-center">
+              <div class="flex flex-col items-center gap-2 text-gray-400">
+                <InboxIcon class="w-8 h-8" />
+                <p class="text-[13px] font-medium">{{ emptyText ?? 'No data' }}</p>
+              </div>
+            </td>
           </tr>
           <template v-else>
             <tr
