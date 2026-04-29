@@ -32,8 +32,12 @@ function logout() {
   <aside class="flex flex-col w-[220px] bg-white border-r border-[#E8E8EC] h-screen sticky top-0 shrink-0">
     <!-- Logo -->
     <div class="flex items-center gap-2.5 px-4 py-4 border-b border-[#F0F0F0]">
-      <div class="w-11 h-11 rounded-xl bg-[#E11D48] flex items-center justify-center shrink-0 text-white font-bold text-[18px]">
-        N
+      <div class="w-11 h-11 rounded-xl bg-[#0A0A0A] overflow-hidden flex items-center justify-center shrink-0">
+        <img
+          src="~/assets/img/nono-logo.png"
+          alt="Nono Club"
+          class="w-full h-full object-cover select-none pointer-events-none"
+        />
       </div>
       <span class="font-bold text-[13px] tracking-wide text-[#0A0A0A]">NONO CLUB</span>
     </div>

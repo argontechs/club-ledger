@@ -32,9 +32,13 @@ async function submit() {
       class="w-[380px] bg-white rounded-2xl border border-[#E8E8EC] shadow-sm p-6 space-y-4"
       @submit.prevent="submit"
     >
-      <div class="flex flex-col items-center gap-2">
-        <div class="w-11 h-11 rounded-xl bg-[#E11D48] flex items-center justify-center text-white font-bold text-[20px]">
-          N
+      <div class="flex flex-col items-center gap-3">
+        <div class="w-20 h-20 rounded-2xl bg-[#0A0A0A] overflow-hidden flex items-center justify-center shrink-0">
+          <img
+            src="~/assets/img/nono-logo.png"
+            alt="Nono Club"
+            class="w-full h-full object-cover select-none pointer-events-none"
+          />
         </div>
         <div class="text-center">
           <h1 class="text-[15px] font-bold text-[#0A0A0A] tracking-wide">Nono Club</h1>

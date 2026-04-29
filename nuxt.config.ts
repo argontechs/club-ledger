@@ -27,4 +27,12 @@ export default defineNuxtConfig({
     server: { hmr: { overlay: false } },
   },
   routeRules: { '/**': { appMiddleware: ['auth'] } },
+  app: {
+    head: {
+      title: 'Nono Club',
+      link: [
+        { rel: 'icon', type: 'image/png', href: '/favicon.png' },
+      ],
+    },
+  },
 })
