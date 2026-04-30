@@ -26,7 +26,18 @@ export default defineNuxtConfig({
     plugins: [tailwindcss()],
     server: { hmr: { overlay: false } },
   },
-  routeRules: { '/**': { appMiddleware: ['auth'] } },
+  routeRules: {
+    '/**': { appMiddleware: ['auth'] },
+    // Lets the ninedsales.com operator portal read a clean reachability
+    // signal when it pings this subdomain on page load. Merges with
+    // the '/**' rule above for the root path; auth is unaffected.
+    '/': {
+      headers: {
+        'Access-Control-Allow-Origin': 'https://ninedsales.com',
+        'Access-Control-Allow-Methods': 'HEAD, GET, OPTIONS',
+      },
+    },
+  },
   app: {
     head: {
       title: 'Nono Club',

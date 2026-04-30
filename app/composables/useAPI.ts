@@ -19,7 +19,7 @@ export function useAPI<T = unknown>(path: string | (() => string)) {
     if (auth.token) return auth.token
     if (import.meta.client) {
       try {
-        const raw = localStorage.getItem('nono_auth_v1')
+        const raw = localStorage.getItem('nono_auth_v1') ?? sessionStorage.getItem('nono_auth_v1')
         if (raw) return JSON.parse(raw)?.token ?? null
       } catch {}
     }
@@ -39,9 +39,13 @@ export function useAPI<T = unknown>(path: string | (() => string)) {
       data.value = await $fetch<T>(`/api/v1${u}`, {
         headers: token ? { authorization: `Bearer ${token}` } : undefined,
       })
-    } catch (e) {
+    } catch (e: any) {
       error.value = e
       data.value = null
+      if (import.meta.client && (e?.status ?? e?.statusCode) === 401 && auth.isAuthenticated) {
+        auth.clear()
+        await navigateTo('/login')
+      }
     } finally {
       pending.value = false
     }

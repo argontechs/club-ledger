@@ -3,11 +3,19 @@ import { useAuthStore } from '~/stores/auth'
 export function useAPIMutation() {
   const auth = useAuthStore()
   async function call<T = unknown>(method: 'POST' | 'PUT' | 'DELETE', path: string, body?: unknown): Promise<T> {
-    return await $fetch<T>(`/api/v1${path}`, {
-      method,
-      headers: { authorization: auth.token ? `Bearer ${auth.token}` : '' },
-      body: body as any,
-    })
+    try {
+      return await $fetch<T>(`/api/v1${path}`, {
+        method,
+        headers: { authorization: auth.token ? `Bearer ${auth.token}` : '' },
+        body: body as any,
+      })
+    } catch (e: any) {
+      if (import.meta.client && (e?.status ?? e?.statusCode) === 401 && auth.isAuthenticated) {
+        auth.clear()
+        await navigateTo('/login')
+      }
+      throw e
+    }
   }
   return {
     post: <T>(p: string, b?: unknown) => call<T>('POST', p, b),

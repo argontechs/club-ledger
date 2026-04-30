@@ -4,6 +4,7 @@ definePageMeta({ layout: false })
 
 const email = ref('')
 const password = ref('')
+const remember = ref(false)
 const error = ref('')
 const loading = ref(false)
 const auth = useAuthStore()
@@ -14,9 +15,10 @@ async function submit() {
   loading.value = true
   try {
     const r = await $fetch<{ token: string; user: any }>('/api/v1/auth/login', {
-      method: 'POST', body: { email: email.value, password: password.value },
+      method: 'POST',
+      body: { email: email.value, password: password.value, remember: remember.value },
     })
-    auth.setSession(r.token, r.user)
+    auth.setSession(r.token, r.user, remember.value)
     router.push('/')
   } catch (e: any) {
     error.value = e?.data?.error?.message || 'Login failed'
@@ -50,6 +52,14 @@ async function submit() {
       <div class="space-y-3">
         <AppInput v-model="email" type="email" label="Email" placeholder="you@nonoclub.local" />
         <AppInput v-model="password" type="password" label="Password" placeholder="••••••••" />
+        <label class="flex items-center gap-2 select-none cursor-pointer pt-0.5">
+          <input
+            v-model="remember"
+            type="checkbox"
+            class="w-4 h-4 rounded border-[var(--color-border)] text-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/30 cursor-pointer"
+          >
+          <span class="text-[12px] text-[var(--color-muted)]">Keep me signed in for 7 days</span>
+        </label>
       </div>
 
       <div

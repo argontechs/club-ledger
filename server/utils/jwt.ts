@@ -1,4 +1,4 @@
-import jwt from 'jsonwebtoken'
+import jwt, { type SignOptions } from 'jsonwebtoken'
 
 export interface TokenPayload {
   sub: number
@@ -6,8 +6,8 @@ export interface TokenPayload {
   ambassador_id?: number | null
 }
 
-export function signToken(payload: TokenPayload, secret: string): string {
-  return jwt.sign(payload, secret, { algorithm: 'HS256', expiresIn: '7d' })
+export function signToken(payload: TokenPayload, secret: string, expiresIn: SignOptions['expiresIn'] = '7d'): string {
+  return jwt.sign(payload, secret, { algorithm: 'HS256', expiresIn })
 }
 
 export function verifyToken(token: string, secret: string): TokenPayload {

@@ -57,6 +57,37 @@ async function save() {
     saving.value = false
   }
 }
+
+const password = ref({ current: '', next: '', confirm: '' })
+const passwordErrors = ref<{ current?: string; next?: string; confirm?: string }>({})
+const changingPassword = ref(false)
+
+async function changePassword() {
+  passwordErrors.value = {}
+  if (!password.value.current) passwordErrors.value.current = 'Required'
+  if (!password.value.next || password.value.next.length < 6)
+    passwordErrors.value.next = 'At least 6 characters'
+  if (password.value.next !== password.value.confirm)
+    passwordErrors.value.confirm = 'Passwords do not match'
+  if (Object.keys(passwordErrors.value).length) return
+
+  changingPassword.value = true
+  try {
+    await m.post('/auth/change-password', {
+      currentPassword: password.value.current,
+      newPassword: password.value.next,
+    })
+    password.value = { current: '', next: '', confirm: '' }
+    toast.success('Password updated')
+  } catch (e: any) {
+    const details = e?.data?.error?.details as Record<string, string> | undefined
+    if (details?.currentPassword) passwordErrors.value.current = details.currentPassword
+    if (details?.newPassword) passwordErrors.value.next = details.newPassword
+    if (!details) toast.error(e?.data?.error?.message || 'Failed to update password')
+  } finally {
+    changingPassword.value = false
+  }
+}
 </script>
 
 <template>
@@ -88,6 +119,42 @@ async function save() {
           <AppInput v-model="form.default_commission_rate" type="number" label="Default ambassador rate (%)" />
           <AppInput v-model="form.bonus_rate" type="number" label="Owner / Admin bonus (%)" />
         </div>
+      </section>
+
+      <!-- Security card -->
+      <section class="bg-[var(--color-card)] border border-[var(--color-border-2)] rounded-2xl p-6 shadow-card space-y-4 lg:col-span-2">
+        <header class="flex items-end justify-between gap-4 flex-wrap">
+          <div>
+            <p class="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-muted-2)]">Account</p>
+            <h3 class="font-display text-[17px] font-semibold text-[var(--color-ink)] tracking-tight mt-0.5">Change password</h3>
+            <p class="text-[12px] text-[var(--color-muted)] mt-1">Update the password for your own account.</p>
+          </div>
+        </header>
+        <form class="grid grid-cols-1 md:grid-cols-3 gap-3" @submit.prevent="changePassword">
+          <AppInput
+            v-model="password.current"
+            type="password"
+            label="Current password"
+            :error="passwordErrors.current"
+          />
+          <AppInput
+            v-model="password.next"
+            type="password"
+            label="New password"
+            :error="passwordErrors.next"
+          />
+          <AppInput
+            v-model="password.confirm"
+            type="password"
+            label="Confirm new password"
+            :error="passwordErrors.confirm"
+          />
+          <div class="md:col-span-3 flex items-center justify-end">
+            <AppButton type="submit" :disabled="changingPassword">
+              {{ changingPassword ? 'Updating…' : 'Update password' }}
+            </AppButton>
+          </div>
+        </form>
       </section>
 
       <!-- Company info card (PDF reports) -->
