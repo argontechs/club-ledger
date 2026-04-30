@@ -14,16 +14,16 @@ defineEmits<{ (e: 'update:modelValue', v: string): void }>()
   <label class="block">
     <span
       v-if="label"
-      class="block text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5"
+      class="block text-[10px] font-semibold text-[var(--color-muted)] uppercase tracking-[0.14em] mb-1.5"
     >{{ label }}</span>
     <input
       :type="type ?? 'text'"
       :value="modelValue ?? ''"
       :placeholder="placeholder"
       :disabled="disabled"
-      class="w-full bg-white border border-[#E0E0E0] rounded-lg px-3 py-2 text-[13px] text-[#0A0A0A] outline-none focus:border-[#E11D48] focus:ring-2 focus:ring-[#E11D48]/10 transition-colors disabled:bg-gray-50 disabled:opacity-70"
+      class="w-full bg-white border border-[var(--color-border)] rounded-lg px-3.5 py-2.5 text-[13px] text-[var(--color-ink)] placeholder:text-[var(--color-muted-2)] outline-none focus:border-[var(--color-brand)] focus:ring-4 focus:ring-[var(--color-brand)]/12 transition-[border-color,box-shadow] duration-150 disabled:bg-[var(--color-surface-2)] disabled:opacity-70"
       @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"
     >
-    <span v-if="error" class="block mt-1 text-[11px] text-red-600">{{ error }}</span>
+    <span v-if="error" class="block mt-1 text-[11px] text-rose-600">{{ error }}</span>
   </label>
 </template>

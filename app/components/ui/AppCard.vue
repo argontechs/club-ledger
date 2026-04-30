@@ -1,20 +1,65 @@
 <script setup lang="ts">
-defineProps<{
+import { computed } from 'vue'
+
+const props = defineProps<{
   label?: string
   value?: string | number
   prefix?: string
+  accent?: boolean
+  tone?: 'default' | 'inverted' | 'brand'
 }>()
+
+const tone = computed(() => props.tone ?? 'default')
+
+const surface = computed(() => {
+  if (tone.value === 'inverted') return 'bg-[var(--color-ink)] text-white border border-[var(--color-ink)]'
+  if (tone.value === 'brand') return 'bg-[var(--color-brand)] text-white border border-[var(--color-brand-dark)] shadow-rose'
+  return 'bg-[var(--color-card)] border border-[var(--color-border-2)] shadow-card'
+})
+
+const labelClass = computed(() => {
+  if (tone.value === 'inverted') return 'text-white/55'
+  if (tone.value === 'brand') return 'text-white/75'
+  return 'text-[var(--color-muted-2)]'
+})
+
+const valueClass = computed(() => {
+  if (tone.value === 'inverted' || tone.value === 'brand') return 'text-white'
+  return 'text-[var(--color-ink)]'
+})
 </script>
 
 <template>
-  <div class="bg-white border border-[#E8E8EC] rounded-2xl p-5 shadow-sm">
+  <div
+    :class="[
+      'relative rounded-2xl p-5 overflow-hidden transition-shadow duration-300',
+      surface,
+    ]"
+  >
+    <!-- Accent rail for KPI emphasis -->
+    <span
+      v-if="accent && tone === 'default'"
+      aria-hidden="true"
+      class="absolute left-0 top-4 bottom-4 w-[3px] rounded-r-full bg-[var(--color-brand)]"
+    />
+
     <template v-if="label">
-      <div class="flex items-center justify-between gap-2">
-        <p class="text-[11px] font-bold uppercase tracking-wide text-gray-400">{{ label }}</p>
+      <div class="flex items-start justify-between gap-2">
+        <p
+          :class="[
+            'text-[10px] font-semibold uppercase tracking-[0.14em]',
+            labelClass,
+          ]"
+        >{{ label }}</p>
         <slot name="icon" />
       </div>
-      <p class="text-2xl font-bold text-[#0A0A0A] mt-1">
-        <span v-if="prefix" class="text-[#0A0A0A]">{{ prefix }}</span>{{ value }}
+      <p
+        :class="[
+          'num-display text-[30px] leading-none mt-3 font-semibold',
+          valueClass,
+        ]"
+      >
+        <span v-if="prefix" class="text-[18px] mr-0.5 opacity-70 align-top tracking-normal">{{ prefix.trim() }}</span>{{ value }}
       </p>
       <slot />
     </template>

@@ -54,19 +54,19 @@ async function remove(id: number, name: string) {
 </script>
 
 <template>
-  <div class="space-y-5">
+  <div class="space-y-6">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-      <p class="text-[13px] text-gray-500">Group ambassadors into teams (e.g. by floor or shift).</p>
+      <p class="text-[13px] text-[var(--color-muted)] max-w-prose">Group ambassadors into teams — for example, by floor or shift.</p>
       <AppButton class="w-full sm:w-auto" @click="showAdd = true">+ New team</AppButton>
     </div>
 
     <AppTable :rows="rows ?? []" empty-text="No teams yet">
       <template #head>
-        <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-gray-300">Name</th>
-        <th class="px-4 py-2.5" />
+        <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Name</th>
+        <th class="px-4 py-3" />
       </template>
       <template #row="{ row }">
-        <td class="px-4 py-3 text-[13px] font-medium text-[#0A0A0A]">{{ row.name }}</td>
+        <td class="px-4 py-3 text-[13px] font-medium text-[var(--color-ink)]">{{ row.name }}</td>
         <td class="px-4 py-3 text-right">
           <div class="inline-flex gap-1.5">
             <AppButton size="sm" variant="secondary" @click="editing = row">Edit</AppButton>

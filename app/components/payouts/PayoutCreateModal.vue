@@ -54,38 +54,52 @@ function fmtRM(n: number) {
 </script>
 <template>
   <AppModal :open="open" size="lg" title="Create payouts" @close="emit('close')">
-    <div class="space-y-4">
+    <div class="space-y-5">
       <div>
-        <label class="block text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Month</label>
+        <label class="block text-[10px] font-semibold text-[var(--color-muted)] uppercase tracking-[0.14em] mb-1.5">Month</label>
         <AppMonthPicker v-model="month" />
       </div>
 
       <div v-if="month">
         <div class="flex items-center justify-between mb-2">
-          <p class="text-[12px] text-gray-500">{{ eligible.length }} ambassador(s) eligible. Already-paid hidden.</p>
-          <button v-if="eligible.length" class="text-[12px] text-[#BE123C] hover:text-[#9F1239] font-medium" @click="toggleAll">
+          <p class="text-[12px] text-[var(--color-muted)] tabular">
+            {{ eligible.length }} ambassador{{ eligible.length === 1 ? '' : 's' }} eligible. Already-paid hidden.
+          </p>
+          <button
+            v-if="eligible.length"
+            class="press text-[12px] text-[var(--color-brand-dark)] hover:text-[var(--color-brand)] font-semibold"
+            @click="toggleAll"
+          >
             {{ allSelected ? 'Clear all' : 'Select all' }}
           </button>
         </div>
-        <div class="border border-[#E8E8EC] rounded-xl divide-y divide-[#F0F0F0] max-h-[280px] overflow-y-auto">
-          <p v-if="!eligible.length" class="text-[12px] text-gray-400 italic p-3 text-center">
+        <div class="border border-[var(--color-border-2)] rounded-xl divide-y divide-[var(--color-hairline)] max-h-[280px] overflow-y-auto bg-[var(--color-card)]">
+          <p v-if="!eligible.length" class="text-[12px] text-[var(--color-muted-2)] italic p-4 text-center">
             No eligible ambassadors for this month.
           </p>
-          <label v-for="c in eligible" :key="c.id"
-            class="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-[#FAFAFA]">
-            <input type="checkbox" :checked="selected.has(c.id)" @change="toggle(c.id)" class="accent-[#E11D48]" />
+          <label
+            v-for="c in eligible"
+            :key="c.id"
+            class="flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-[var(--color-hairline)]/60 transition-colors"
+          >
+            <input
+              type="checkbox"
+              :checked="selected.has(c.id)"
+              class="w-4 h-4 rounded accent-[var(--color-brand)] cursor-pointer"
+              @change="toggle(c.id)"
+            >
             <div class="min-w-0 flex-1">
-              <p class="text-[13px] font-medium text-[#0A0A0A]">{{ c.name }}</p>
-              <p v-if="c.fullName" class="text-[11px] text-gray-400">{{ c.fullName }}</p>
+              <p class="text-[13px] font-medium text-[var(--color-ink)]">{{ c.name }}</p>
+              <p v-if="c.fullName" class="text-[11px] text-[var(--color-muted-2)]">{{ c.fullName }}</p>
             </div>
-            <span class="text-[12px] text-gray-500">{{ fmtRM(c.salesTotal) }}</span>
+            <span class="text-[12px] text-[var(--color-muted)] tabular">{{ fmtRM(c.salesTotal) }}</span>
           </label>
         </div>
       </div>
 
-      <label class="flex items-center gap-2">
-        <input v-model="markPaid" type="checkbox" class="accent-[#E11D48]" />
-        <span class="text-[13px] text-gray-700">Mark as paid immediately</span>
+      <label class="flex items-center gap-2 cursor-pointer select-none">
+        <input v-model="markPaid" type="checkbox" class="w-4 h-4 rounded accent-[var(--color-brand)] cursor-pointer" >
+        <span class="text-[13px] text-[var(--color-ink-soft)]">Mark as paid immediately</span>
       </label>
     </div>
     <template #footer>

@@ -1,23 +1,123 @@
 @import 'tailwindcss';
 
 @theme {
-  --color-ink: #0A0A0A;
-  --color-surface: #F0F2F5;
-  --color-border: #E8E8EC;
-  --color-brand: #E11D48;        /* rose-600 — Nono Club accent */
-  --color-brand-dark: #BE123C;   /* rose-700 */
-  --color-brand-tint: rgba(225, 29, 72, 0.10);
+  /* Surfaces — warm-tinted off-whites instead of cool Apple grey */
+  --color-ink: #0E0E10;
+  --color-ink-soft: #2A2A2E;
+  --color-muted: #6B6B72;
+  --color-muted-2: #9A9AA1;
+  --color-surface: #F4F2EE;     /* warm canvas */
+  --color-surface-2: #ECE9E3;   /* deeper warm */
+  --color-card: #FFFFFF;
+  --color-border: #E6E1D9;
+  --color-border-2: #EFEAE2;
+  --color-hairline: #F2EEE7;
+
+  /* Brand — rose, but tuned slightly warmer + an ember accent */
+  --color-brand: #DC1A47;
+  --color-brand-dark: #A8133A;
+  --color-brand-soft: #FCE3EA;
+  --color-brand-tint: rgba(220, 26, 71, 0.08);
+  --color-ember: #E86A2C;       /* secondary highlight */
+
+  /* Typography — Geist for UI, Fraunces for display, Geist Mono for figures */
+  --font-sans: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Fraunces', 'Geist', ui-serif, Georgia, serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  /* Motion */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Tinted shadows */
+  --shadow-card: 0 1px 0 rgba(20, 14, 8, 0.02), 0 8px 24px -16px rgba(36, 24, 16, 0.18);
+  --shadow-lift: 0 1px 0 rgba(20, 14, 8, 0.03), 0 18px 40px -22px rgba(36, 24, 16, 0.30);
+  --shadow-rose: 0 14px 30px -12px rgba(220, 26, 71, 0.45);
 }
 
 @layer base {
   html, body, #__nuxt { height: 100%; }
+  html { scroll-behavior: smooth; }
   body {
     background-color: var(--color-surface);
     color: var(--color-ink);
-    font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+    font-family: var(--font-sans);
+    font-feature-settings: 'cv11', 'ss01', 'ss03';
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
-  ::-webkit-scrollbar { width: 4px; height: 4px; }
+
+  /* Numeric figures — money, counts, percents */
+  .tabular,
+  .tabular * {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Visible focus ring system */
+  :where(button, a, input, select, textarea, [role="button"]):focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+    border-radius: 0.5rem;
+  }
+
+  ::selection {
+    background: var(--color-brand);
+    color: white;
+  }
+
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: #E8E8EC; border-radius: 2px; }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(36, 24, 16, 0.12);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(36, 24, 16, 0.22); background-clip: padding-box; }
+}
+
+@layer utilities {
+  /* Tinted, layered shadow for cards (replaces default shadow-sm) */
+  .shadow-card { box-shadow: var(--shadow-card); }
+  .shadow-lift { box-shadow: var(--shadow-lift); }
+  .shadow-rose { box-shadow: var(--shadow-rose); }
+
+  /* Subtle paper-grain — fixed overlay, opt-in per element */
+  .grain {
+    position: relative;
+    isolation: isolate;
+  }
+  .grain::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.35;
+    mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.06  0 0 0 0 0.05  0 0 0 0 0.04  0 0 0 0.06 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    border-radius: inherit;
+    z-index: 0;
+  }
+  .grain > * { position: relative; z-index: 1; }
+
+  /* Display heading — used for hero KPI numbers */
+  .font-display { font-family: var(--font-display); font-feature-settings: 'ss01', 'ss02'; }
+
+  /* Cardinal numbers feel */
+  .num-display {
+    font-family: var(--font-display);
+    font-feature-settings: 'tnum' on, 'lnum' on, 'ss01' on;
+    letter-spacing: -0.02em;
+  }
+
+  /* Pretty wrap for headings */
+  .text-balance { text-wrap: balance; }
+  .text-pretty  { text-wrap: pretty; }
+
+  /* Spring press */
+  .press {
+    transition: transform 180ms var(--ease-spring), box-shadow 180ms var(--ease-out-soft), background-color 180ms var(--ease-out-soft), border-color 180ms var(--ease-out-soft);
+  }
+  .press:active { transform: translateY(1px) scale(0.985); }
 }

@@ -27,35 +27,51 @@ async function submit() {
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#F0F2F5] flex items-center justify-center p-4">
+  <div class="relative min-h-dvh bg-[var(--color-surface)] flex items-center justify-center p-4 overflow-hidden">
+    <!-- Ambient brand wash -->
+    <div aria-hidden="true" class="pointer-events-none absolute inset-0">
+      <div class="absolute -top-40 -right-32 w-[640px] h-[640px] rounded-full opacity-30 blur-3xl"
+        style="background: radial-gradient(closest-side, var(--color-brand) 0%, transparent 70%);" />
+      <div class="absolute -bottom-32 -left-24 w-[520px] h-[520px] rounded-full opacity-20 blur-3xl"
+        style="background: radial-gradient(closest-side, var(--color-ember) 0%, transparent 70%);" />
+    </div>
+
     <form
-      class="w-[380px] bg-white rounded-2xl border border-[#E8E8EC] shadow-sm p-6 space-y-4"
+      class="relative w-[400px] max-w-full bg-[var(--color-card)]/90 backdrop-blur-xl rounded-2xl border border-[var(--color-border-2)] shadow-lift p-7 space-y-5"
       @submit.prevent="submit"
     >
       <div class="flex flex-col items-center gap-3">
-        <div class="w-20 h-20 rounded-2xl bg-[#0A0A0A] overflow-hidden flex items-center justify-center shrink-0">
+        <div class="relative w-20 h-20 rounded-2xl bg-[var(--color-ink)] overflow-hidden flex items-center justify-center shrink-0 ring-1 ring-black/10 shadow-card">
           <img
             src="~/assets/img/nono-logo.png"
             alt="Nono Club"
             class="w-full h-full object-cover select-none pointer-events-none"
-          />
+          >
+          <span class="absolute -right-1.5 -bottom-1.5 w-4 h-4 rounded-full bg-[var(--color-brand)] ring-3 ring-[var(--color-card)] shadow-rose" />
         </div>
         <div class="text-center">
-          <h1 class="text-[15px] font-bold text-[#0A0A0A] tracking-wide">Nono Club</h1>
-          <p class="text-[11px] text-gray-400 mt-0.5">Sales &amp; commission tracking</p>
+          <h1 class="font-display text-[22px] font-bold text-[var(--color-ink)] tracking-tight text-balance">Welcome back</h1>
+          <p class="text-[12px] text-[var(--color-muted)] mt-1">Sign in to track sales and commissions.</p>
         </div>
       </div>
 
-      <div class="space-y-3 pt-2">
+      <div class="space-y-3">
         <AppInput v-model="email" type="email" label="Email" placeholder="you@nonoclub.local" />
-        <AppInput v-model="password" type="password" label="Password" />
+        <AppInput v-model="password" type="password" label="Password" placeholder="••••••••" />
       </div>
 
-      <p v-if="error" class="text-[12px] text-red-600 text-center">{{ error }}</p>
+      <div
+        v-if="error"
+        class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[12px] text-rose-700 text-center"
+      >{{ error }}</div>
 
       <AppButton type="submit" :disabled="loading" class="w-full">
         {{ loading ? 'Signing in…' : 'Sign in' }}
       </AppButton>
+
+      <p class="text-center text-[10px] uppercase tracking-[0.2em] text-[var(--color-muted-2)] pt-1">
+        Nono Club · Sales &amp; commission
+      </p>
     </form>
   </div>
 </template>

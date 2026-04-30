@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { TrophyIcon } from '@heroicons/vue/24/outline'
 import { formatRM } from '~/utils/currency'
 
 const month = ref('')
@@ -10,53 +11,102 @@ watch(monthList, (list) => {
   if (list && list.length && !month.value) month.value = list[0]
 }, { immediate: true })
 
-const medalClass = (i: number) => {
-  if (i === 0) return 'bg-amber-100 text-amber-700'
-  if (i === 1) return 'bg-slate-100 text-slate-500'
-  if (i === 2) return 'bg-orange-100 text-orange-700'
-  return 'bg-gray-50 text-gray-400'
+const typeOptions = [
+  { value: 'all', label: 'All' },
+  { value: 'Table', label: 'Table' },
+  { value: 'BGO', label: 'BGO' },
+] as const
+
+function initials(name: string | undefined | null) {
+  if (!name) return '·'
+  return name.split(/\s+/).map(s => s[0]).filter(Boolean).slice(0, 2).join('').toUpperCase()
 }
+
+const podium = computed(() => (rows.value ?? []).slice(0, 3))
+const rest = computed(() => (rows.value ?? []).slice(3))
 </script>
 
 <template>
-  <div class="space-y-5">
-    <div class="flex flex-col gap-3">
+  <div class="space-y-6">
+    <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
       <AppMonthPills v-model="month" :months="monthList ?? []" label="Month" empty-text="No sales recorded yet" />
+      <AppPillGroup v-model="type" :options="typeOptions" label="Type" />
+    </div>
 
-      <div class="flex flex-wrap items-center gap-1.5">
-        <span class="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mr-2">Type</span>
-        <button
-          v-for="opt in [{ value: 'all', label: 'All' }, { value: 'Table', label: 'Table' }, { value: 'BGO', label: 'BGO' }]"
-          :key="opt.value"
-          type="button"
-          class="px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors border"
-          :class="type === opt.value
-            ? 'bg-[#0A0A0A] text-white border-[#0A0A0A]'
-            : 'bg-white text-gray-600 border-[#E0E0E0] hover:border-gray-400'"
-          @click="type = opt.value as any"
-        >
-          {{ opt.label }}
-        </button>
+    <!-- Podium for top 3 -->
+    <div v-if="podium.length" class="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div
+        v-for="(row, i) in podium"
+        :key="row.ambassadorId"
+        :class="[
+          'relative rounded-2xl p-5 overflow-hidden border shadow-card',
+          i === 0
+            ? 'bg-[var(--color-ink)] text-white border-[var(--color-ink)] shadow-lift md:-translate-y-1'
+            : 'bg-[var(--color-card)] border-[var(--color-border-2)]',
+        ]"
+      >
+        <div
+          v-if="i === 0"
+          aria-hidden="true"
+          class="pointer-events-none absolute -bottom-16 -right-16 w-56 h-56 rounded-full opacity-40 blur-3xl"
+          style="background: radial-gradient(closest-side, var(--color-brand) 0%, transparent 70%);"
+        />
+        <div class="relative flex items-center justify-between">
+          <span
+            class="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[10px] font-semibold tracking-tight"
+            :class="i === 0
+              ? 'bg-[var(--color-brand)] text-white'
+              : i === 1
+              ? 'bg-[var(--color-ink)] text-white'
+              : 'bg-[var(--color-surface-2)] text-[var(--color-ink-soft)]'"
+          >
+            <TrophyIcon class="w-3 h-3" /> Rank {{ i + 1 }}
+          </span>
+          <span
+            class="text-[10px] uppercase tracking-[0.18em]"
+            :class="i === 0 ? 'text-white/55' : 'text-[var(--color-muted-2)]'"
+          >{{ row.saleCount }} {{ row.saleCount === 1 ? 'sale' : 'sales' }}</span>
+        </div>
+        <div class="relative mt-5 flex items-center gap-3">
+          <div
+            class="w-12 h-12 rounded-xl flex items-center justify-center text-[14px] font-bold shrink-0"
+            :class="i === 0
+              ? 'bg-gradient-to-br from-[var(--color-brand)] to-[var(--color-ember)] text-white shadow-rose ring-2 ring-white/10'
+              : 'bg-gradient-to-br from-[var(--color-ember)] to-[var(--color-brand)] text-white ring-2 ring-white'"
+          >
+            {{ initials(row.name) }}
+          </div>
+          <div class="min-w-0">
+            <p
+              class="font-display font-semibold text-[16px] tracking-tight truncate"
+              :class="i === 0 ? 'text-white' : 'text-[var(--color-ink)]'"
+            >{{ row.name }}</p>
+            <p
+              class="num-display text-[20px] font-semibold mt-0.5 leading-none"
+              :class="i === 0 ? 'text-white' : 'text-[var(--color-ink)]'"
+            >{{ formatRM(row.totalSales) }}</p>
+          </div>
+        </div>
       </div>
     </div>
 
-    <AppTable :rows="rows ?? []" empty-text="No data">
+    <!-- Remaining ranks -->
+    <AppTable v-if="rest.length || !podium.length" :rows="rest" :empty-text="podium.length ? 'No more entries' : 'No data'">
       <template #head>
-        <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-gray-300 w-16">Rank</th>
-        <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-gray-300">Ambassador</th>
-        <th class="px-4 py-2.5 text-right text-[10px] font-bold uppercase tracking-wide text-gray-300">Sales</th>
-        <th class="px-4 py-2.5 text-right text-[10px] font-bold uppercase tracking-wide text-gray-300">Total</th>
+        <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)] w-16">Rank</th>
+        <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Ambassador</th>
+        <th class="px-4 py-3 text-right text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Sales</th>
+        <th class="px-4 py-3 text-right text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Total</th>
       </template>
       <template #row="{ row, index }">
         <td class="px-4 py-3">
-          <span
-            class="inline-flex items-center justify-center w-7 h-7 rounded-full text-[11px] font-bold"
-            :class="medalClass(index)"
-          >{{ index + 1 }}</span>
+          <span class="inline-flex items-center justify-center w-8 h-7 rounded-md text-[11px] font-semibold tabular bg-[var(--color-surface-2)] text-[var(--color-muted)]">
+            {{ String(index + 4).padStart(2, '0') }}
+          </span>
         </td>
-        <td class="px-4 py-3 text-[13px] font-medium text-[#0A0A0A]">{{ row.name }}</td>
-        <td class="px-4 py-3 text-[13px] text-right text-gray-500">{{ row.saleCount }}</td>
-        <td class="px-4 py-3 text-[13px] text-right font-semibold text-[#BE123C]">{{ formatRM(row.totalSales) }}</td>
+        <td class="px-4 py-3 text-[13px] font-medium text-[var(--color-ink)]">{{ row.name }}</td>
+        <td class="px-4 py-3 text-[13px] text-right text-[var(--color-muted)] tabular">{{ row.saleCount }}</td>
+        <td class="px-4 py-3 text-[13px] text-right font-semibold text-[var(--color-ink)] tabular">{{ formatRM(row.totalSales) }}</td>
       </template>
     </AppTable>
   </div>

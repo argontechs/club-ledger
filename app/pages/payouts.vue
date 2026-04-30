@@ -25,7 +25,6 @@ watch(monthList, (list) => {
   else if ((!list || list.length === 0) && !month.value) month.value = currentMonth()
 }, { immediate: true })
 
-// Pagination
 const page = ref(1)
 const perPage = ref(25)
 watch([month, statusFilter], () => { page.value = 1 })
@@ -158,69 +157,54 @@ async function copyAccount(value: string | null | undefined) {
 }
 
 const statusOptions = [
-  { value: 'all', label: 'All statuses' },
+  { value: 'all', label: 'All' },
   { value: 'paid', label: 'Paid' },
   { value: 'unpaid', label: 'Unpaid' },
-]
+] as const
 </script>
 
 <template>
-  <div class="space-y-5">
-    <div class="flex flex-col gap-3">
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <AppMonthPills v-model="month" :months="monthList ?? []" label="Month" empty-text="No payouts recorded yet" />
-        <AppButton class="w-full sm:w-auto" @click="showCreate = true">+ Create payouts</AppButton>
-      </div>
-      <div class="flex flex-wrap items-center gap-1.5">
-        <span class="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mr-2">Status</span>
-        <button
-          v-for="opt in statusOptions"
-          :key="opt.value"
-          type="button"
-          class="px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors border"
-          :class="statusFilter === opt.value
-            ? 'bg-[#0A0A0A] text-white border-[#0A0A0A]'
-            : 'bg-white text-gray-600 border-[#E0E0E0] hover:border-gray-400'"
-          @click="statusFilter = opt.value as any"
-        >
-          {{ opt.label }}
-        </button>
-      </div>
+  <div class="space-y-6">
+    <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+      <AppMonthPills v-model="month" :months="monthList ?? []" label="Month" empty-text="No payouts recorded yet" />
+      <AppButton class="w-full sm:w-auto" @click="showCreate = true">+ Create payouts</AppButton>
     </div>
+
+    <AppPillGroup v-model="statusFilter" :options="statusOptions" label="Status" />
 
     <AppTable :rows="pagedRows" empty-text="No payouts for this filter">
       <template #head>
-        <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-gray-300">Ambassador</th>
-        <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-gray-300">Period</th>
-        <th class="px-4 py-2.5 text-right text-[10px] font-bold uppercase tracking-wide text-gray-300">Amount</th>
-        <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-gray-300">Status</th>
-        <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-gray-300">Paid at</th>
-        <th class="px-4 py-2.5" />
+        <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Ambassador</th>
+        <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Period</th>
+        <th class="px-4 py-3 text-right text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Amount</th>
+        <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Status</th>
+        <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Paid at</th>
+        <th class="px-4 py-3" />
       </template>
       <template #row="{ row }">
-        <td class="px-4 py-3 text-[13px] font-medium text-[#0A0A0A]">
+        <td class="px-4 py-3 text-[13px] font-medium text-[var(--color-ink)]">
           <button
             type="button"
-            class="text-left hover:text-[#E11D48] hover:underline transition-colors"
+            class="text-left transition-colors hover:text-[var(--color-brand)] hover:underline underline-offset-4"
             @click="openAmbassadorDetail(row.ambassadorId)"
           >
             {{ ambassadors?.find(a => a.id === row.ambassadorId)?.name ?? row.ambassadorId }}
           </button>
         </td>
-        <td class="px-4 py-3 text-[13px] text-gray-500">{{ row.periodMonth }}</td>
-        <td class="px-4 py-3 text-[13px] text-right font-semibold text-[#0A0A0A]">{{ formatRM(row.amount) }}</td>
+        <td class="px-4 py-3 text-[13px] text-[var(--color-muted)] tabular">{{ row.periodMonth }}</td>
+        <td class="px-4 py-3 text-[13px] text-right font-semibold text-[var(--color-ink)] tabular">{{ formatRM(row.amount) }}</td>
         <td class="px-4 py-3 text-[13px]">
           <AppBadge v-if="row.paidAt" tone="emerald">Paid</AppBadge>
           <AppBadge v-else tone="amber">Unpaid</AppBadge>
         </td>
-        <td class="px-4 py-3 text-[13px] text-gray-500">{{ row.paidAt ? formatDate(row.paidAt.slice(0, 10)) : '-' }}</td>
+        <td class="px-4 py-3 text-[13px] text-[var(--color-muted)] tabular">{{ row.paidAt ? formatDate(row.paidAt.slice(0, 10)) : '—' }}</td>
         <td class="px-4 py-3 text-right">
-          <div class="inline-flex gap-1">
+          <div class="inline-flex gap-0.5">
             <button
               v-if="!row.paidAt"
               type="button"
               title="Mark as paid"
-              class="w-8 h-8 inline-flex items-center justify-center rounded-md text-emerald-600 hover:bg-emerald-50 transition-colors"
+              class="press w-8 h-8 inline-flex items-center justify-center rounded-lg text-emerald-700 hover:bg-emerald-50"
               @click="markPaid(row.id)"
             >
               <CheckIcon class="w-4 h-4" />
@@ -229,7 +213,7 @@ const statusOptions = [
               v-if="row.paidAt"
               type="button"
               title="Mark as unpaid"
-              class="w-8 h-8 inline-flex items-center justify-center rounded-md text-amber-600 hover:bg-amber-50 transition-colors"
+              class="press w-8 h-8 inline-flex items-center justify-center rounded-lg text-amber-700 hover:bg-amber-50"
               @click="markUnpaid(row.id)"
             >
               <ArrowPathIcon class="w-4 h-4" />
@@ -238,7 +222,7 @@ const statusOptions = [
               type="button"
               :title="downloadingSummary === row.id ? 'Downloading…' : 'Download summary PDF'"
               :disabled="downloadingSummary === row.id"
-              class="w-8 h-8 inline-flex items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 transition-colors disabled:opacity-50"
+              class="press w-8 h-8 inline-flex items-center justify-center rounded-lg text-[var(--color-muted)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-ink)] disabled:opacity-50"
               @click="downloadSummary(row.id)"
             >
               <DocumentArrowDownIcon class="w-4 h-4" />
@@ -247,7 +231,7 @@ const statusOptions = [
               type="button"
               :title="generatingPayslip === row.id ? 'Generating…' : 'Generate & download payslip'"
               :disabled="generatingPayslip === row.id"
-              class="w-8 h-8 inline-flex items-center justify-center rounded-md text-indigo-500 hover:bg-indigo-50 transition-colors disabled:opacity-50"
+              class="press w-8 h-8 inline-flex items-center justify-center rounded-lg text-indigo-600 hover:bg-indigo-50 disabled:opacity-50"
               @click="downloadPayslip(row.id)"
             >
               <DocumentTextIcon class="w-4 h-4" />
@@ -255,13 +239,13 @@ const statusOptions = [
             <button
               type="button"
               title="Receipts"
-              class="relative w-8 h-8 inline-flex items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 transition-colors"
+              class="press relative w-8 h-8 inline-flex items-center justify-center rounded-lg text-[var(--color-muted)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-ink)]"
               @click="openReceipts(row)"
             >
               <PaperClipIcon class="w-4 h-4" />
               <span
                 v-if="row.receiptPaths?.length"
-                class="absolute -top-0.5 -right-0.5 inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-[#E11D48] text-white text-[9px] font-bold leading-none"
+                class="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-[var(--color-brand)] text-white text-[9px] font-bold leading-none ring-2 ring-[var(--color-card)]"
               >
                 {{ row.receiptPaths.length }}
               </span>
@@ -269,7 +253,7 @@ const statusOptions = [
             <button
               type="button"
               title="Delete payout"
-              class="w-8 h-8 inline-flex items-center justify-center rounded-md text-gray-400 hover:bg-rose-50 hover:text-rose-600 transition-colors"
+              class="press w-8 h-8 inline-flex items-center justify-center rounded-lg text-[var(--color-muted-2)] hover:bg-rose-50 hover:text-rose-700"
               @click="remove(row.id)"
             >
               <TrashIcon class="w-4 h-4" />
@@ -288,14 +272,12 @@ const statusOptions = [
       @update:per-page="perPage = $event"
     />
 
-    <!-- Batch create payouts modal -->
     <PayoutCreateModal
       :open="showCreate"
       @close="showCreate = false"
       @created="refresh"
     />
 
-    <!-- Receipts modal -->
     <PayoutReceiptModal
       :open="receiptOpen"
       :payout="receiptPayout"
@@ -303,45 +285,44 @@ const statusOptions = [
       @updated="onReceiptsUpdated"
     />
 
-    <!-- Ambassador detail modal -->
     <AppModal
       :open="detailModalOpen"
       title="Ambassador details"
       @close="closeDetailModal"
     >
-      <div v-if="selectedAmbassador" class="space-y-4">
+      <div v-if="selectedAmbassador" class="space-y-5">
         <section>
-          <h4 class="text-[11px] font-bold uppercase tracking-wide text-gray-400 mb-2">Personal</h4>
-          <dl class="space-y-1.5">
-            <div class="flex justify-between gap-3">
-              <dt class="text-[12px] text-gray-500">Name</dt>
-              <dd class="text-[13px] font-medium text-[#0A0A0A]">{{ selectedAmbassador.name }}</dd>
+          <h4 class="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)] mb-3">Personal</h4>
+          <dl class="rounded-xl border border-[var(--color-border-2)] bg-[var(--color-hairline)]/40 divide-y divide-[var(--color-hairline)]">
+            <div class="flex justify-between gap-3 px-4 py-2.5">
+              <dt class="text-[12px] text-[var(--color-muted)]">Name</dt>
+              <dd class="text-[13px] font-medium text-[var(--color-ink)]">{{ selectedAmbassador.name }}</dd>
             </div>
-            <div class="flex justify-between gap-3">
-              <dt class="text-[12px] text-gray-500">Full legal name</dt>
-              <dd class="text-[13px] text-[#0A0A0A]">{{ selectedAmbassador.fullName || '—' }}</dd>
+            <div class="flex justify-between gap-3 px-4 py-2.5">
+              <dt class="text-[12px] text-[var(--color-muted)]">Full legal name</dt>
+              <dd class="text-[13px] text-[var(--color-ink)]">{{ selectedAmbassador.fullName || '—' }}</dd>
             </div>
-            <div class="flex justify-between gap-3">
-              <dt class="text-[12px] text-gray-500">Team</dt>
-              <dd class="text-[13px] text-[#0A0A0A]">{{ teamName(selectedAmbassador.teamId) }}</dd>
+            <div class="flex justify-between gap-3 px-4 py-2.5">
+              <dt class="text-[12px] text-[var(--color-muted)]">Team</dt>
+              <dd class="text-[13px] text-[var(--color-ink)]">{{ teamName(selectedAmbassador.teamId) }}</dd>
             </div>
           </dl>
         </section>
         <section>
-          <h4 class="text-[11px] font-bold uppercase tracking-wide text-gray-400 mb-2">Bank details</h4>
-          <dl class="space-y-1.5">
-            <div class="flex justify-between gap-3">
-              <dt class="text-[12px] text-gray-500">Bank name</dt>
-              <dd class="text-[13px] text-[#0A0A0A]">{{ selectedAmbassador.bankName || '—' }}</dd>
+          <h4 class="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)] mb-3">Bank details</h4>
+          <dl class="rounded-xl border border-[var(--color-border-2)] bg-[var(--color-hairline)]/40 divide-y divide-[var(--color-hairline)]">
+            <div class="flex justify-between gap-3 px-4 py-2.5">
+              <dt class="text-[12px] text-[var(--color-muted)]">Bank name</dt>
+              <dd class="text-[13px] text-[var(--color-ink)]">{{ selectedAmbassador.bankName || '—' }}</dd>
             </div>
-            <div class="flex justify-between gap-3 items-center">
-              <dt class="text-[12px] text-gray-500">Account number</dt>
-              <dd class="text-[13px] font-mono text-[#0A0A0A] flex items-center gap-2">
+            <div class="flex justify-between gap-3 items-center px-4 py-2.5">
+              <dt class="text-[12px] text-[var(--color-muted)]">Account number</dt>
+              <dd class="text-[13px] font-mono text-[var(--color-ink)] flex items-center gap-2 tabular">
                 <span>{{ selectedAmbassador.bankAccountNumber || '—' }}</span>
                 <button
                   v-if="selectedAmbassador.bankAccountNumber"
                   type="button"
-                  class="w-6 h-6 inline-flex items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+                  class="press w-6 h-6 inline-flex items-center justify-center rounded-md text-[var(--color-muted-2)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-ink)]"
                   title="Copy account number"
                   @click="copyAccount(selectedAmbassador.bankAccountNumber)"
                 >
@@ -349,9 +330,9 @@ const statusOptions = [
                 </button>
               </dd>
             </div>
-            <div class="flex justify-between gap-3">
-              <dt class="text-[12px] text-gray-500">Account holder</dt>
-              <dd class="text-[13px] text-[#0A0A0A]">{{ selectedAmbassador.bankOwnerName || '—' }}</dd>
+            <div class="flex justify-between gap-3 px-4 py-2.5">
+              <dt class="text-[12px] text-[var(--color-muted)]">Account holder</dt>
+              <dd class="text-[13px] text-[var(--color-ink)]">{{ selectedAmbassador.bankOwnerName || '—' }}</dd>
             </div>
           </dl>
         </section>

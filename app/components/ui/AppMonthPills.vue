@@ -14,8 +14,6 @@ function pillLabel(m: string) {
   return `${MONTH_NAMES[mo - 1]} ${String(y).slice(2)}`
 }
 
-// Show up to 12 most recent months. If the active selection isn't in the list,
-// prepend it so it stays visible.
 const displayMonths = computed<string[]>(() => {
   const seen = new Set<string>()
   const out: string[] = []
@@ -35,21 +33,24 @@ function pick(m: string) { emit('update:modelValue', m) }
 
 <template>
   <div class="flex flex-wrap items-center gap-1.5">
-    <span v-if="label" class="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mr-2">{{ label }}</span>
+    <span
+      v-if="label"
+      class="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)] mr-2"
+    >{{ label }}</span>
     <template v-if="displayMonths.length">
       <button
         v-for="m in displayMonths"
         :key="m"
         type="button"
-        class="px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors border"
+        class="press relative px-3 py-1.5 rounded-full text-[12px] font-medium border tabular"
         :class="modelValue === m
-          ? 'bg-[#E11D48] text-white border-[#E11D48]'
-          : 'bg-white text-gray-600 border-[#E0E0E0] hover:border-[#E11D48]/40 hover:text-[#BE123C]'"
+          ? 'bg-[var(--color-ink)] text-white border-[var(--color-ink)] shadow-card'
+          : 'bg-white/80 backdrop-blur text-[var(--color-muted)] border-[var(--color-border)] hover:border-[var(--color-ink)]/30 hover:text-[var(--color-ink)]'"
         @click="pick(m)"
       >
         {{ pillLabel(m) }}
       </button>
     </template>
-    <span v-else class="text-[12px] text-gray-400 italic">{{ emptyText ?? 'No months yet' }}</span>
+    <span v-else class="text-[12px] text-[var(--color-muted-2)] italic">{{ emptyText ?? 'No months yet' }}</span>
   </div>
 </template>

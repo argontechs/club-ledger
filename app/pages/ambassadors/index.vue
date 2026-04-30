@@ -123,27 +123,32 @@ const isAdmin = computed(() => auth.user?.role === 'admin')
 </script>
 
 <template>
-  <div class="space-y-5">
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2">
+  <div class="space-y-6">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <p class="text-[13px] text-[var(--color-muted)]">
+        Manage ambassadors, their team, commission rate, and bank details.
+      </p>
       <AppButton class="w-full sm:w-auto" @click="showAdd = true">+ New ambassador</AppButton>
     </div>
 
     <AppTable :rows="pagedRows" empty-text="No ambassadors yet">
       <template #head>
-        <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-gray-300">Name</th>
-        <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-gray-300">Team</th>
-        <th class="px-4 py-2.5 text-right text-[10px] font-bold uppercase tracking-wide text-gray-300">Rate</th>
-        <th class="px-4 py-2.5" />
+        <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Name</th>
+        <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Team</th>
+        <th class="px-4 py-3 text-right text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Rate</th>
+        <th class="px-4 py-3" />
       </template>
       <template #row="{ row }">
-        <td class="px-4 py-3 text-[13px] font-medium text-[#0A0A0A]">
-          {{ row.name }}
-          <AppBadge v-if="row.isProtected" tone="slate" class="ml-2">protected</AppBadge>
+        <td class="px-4 py-3 text-[13px] font-medium text-[var(--color-ink)]">
+          <span class="inline-flex items-center gap-2">
+            {{ row.name }}
+            <AppBadge v-if="row.isProtected" tone="slate" :dot="false" shape="square">Protected</AppBadge>
+          </span>
         </td>
-        <td class="px-4 py-3 text-[13px] text-gray-500">
+        <td class="px-4 py-3 text-[13px] text-[var(--color-muted)]">
           {{ teams?.find(t => t.id === row.teamId)?.name ?? '—' }}
         </td>
-        <td class="px-4 py-3 text-[13px] text-right font-semibold text-[#0A0A0A]">{{ row.commissionRate }}%</td>
+        <td class="px-4 py-3 text-[13px] text-right font-semibold text-[var(--color-ink)] tabular">{{ row.commissionRate }}%</td>
         <td class="px-4 py-3 text-right">
           <div v-if="!(isAdmin && isOwnerProtected(row))" class="inline-flex gap-1.5">
             <AppButton size="sm" variant="secondary" @click="editing = row">Edit</AppButton>
@@ -171,7 +176,7 @@ const isAdmin = computed(() => auth.user?.role === 'admin')
       <div class="space-y-6">
         <!-- Personal -->
         <section class="space-y-3">
-          <h4 class="text-[11px] font-bold uppercase tracking-wide text-gray-400">Personal</h4>
+          <h4 class="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Personal</h4>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <AppInput v-model="form.name" label="Name (alias)" placeholder="e.g. Johnny" />
             <AppInput v-model="form.fullName" label="Full legal name" placeholder="Optional" />
@@ -183,7 +188,7 @@ const isAdmin = computed(() => auth.user?.role === 'admin')
 
         <!-- Assignment -->
         <section class="space-y-3">
-          <h4 class="text-[11px] font-bold uppercase tracking-wide text-gray-400">Assignment</h4>
+          <h4 class="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Assignment</h4>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <AppSelect
               v-model="form.teamId"
@@ -196,7 +201,7 @@ const isAdmin = computed(() => auth.user?.role === 'admin')
 
         <!-- Bank details -->
         <section class="space-y-3">
-          <h4 class="text-[11px] font-bold uppercase tracking-wide text-gray-400">Bank details</h4>
+          <h4 class="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Bank details</h4>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <AppInput v-model="form.bankName" label="Bank name" placeholder="e.g. Maybank" />
             <AppInput v-model="form.bankAccountNumber" label="Account number" placeholder="Optional" />

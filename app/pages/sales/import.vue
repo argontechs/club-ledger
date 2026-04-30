@@ -115,52 +115,62 @@ function rowStatus(r: ParsedRow): { tone: 'slate' | 'emerald' | 'amber'; label: 
   if (!r.ambassadorId) return { tone: 'amber', label: 'Unassigned' }
   return { tone: 'emerald', label: 'Ready' }
 }
+
+const statusOptions = [
+  { value: 'draft', label: 'Draft' },
+  { value: 'confirmed', label: 'Confirmed' },
+] as const
 </script>
 
 <template>
   <!-- ===== STAGE 1 : UPLOAD ===== -->
   <div v-if="stage === 'upload'" class="space-y-5 max-w-3xl mx-auto">
-    <div class="bg-white border border-[#E8E8EC] rounded-2xl p-6 shadow-sm">
-      <div class="flex items-center justify-between mb-4">
-        <h3 class="text-[14px] font-bold text-[#0A0A0A]">Upload sales PDF</h3>
-        <p class="text-[11px] text-gray-400 hidden sm:block">PDF only · max 20MB</p>
+    <div class="bg-[var(--color-card)] border border-[var(--color-border-2)] rounded-2xl p-6 shadow-card">
+      <div class="flex items-start justify-between mb-5 gap-3">
+        <div>
+          <p class="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-muted-2)]">Step 1 of 2</p>
+          <h3 class="font-display text-[18px] font-semibold text-[var(--color-ink)] tracking-tight mt-0.5">Upload sales PDF</h3>
+        </div>
+        <p class="text-[11px] text-[var(--color-muted-2)] tabular hidden sm:block">PDF only · max 20 MB</p>
       </div>
 
       <label
         v-if="!file"
-        class="flex flex-col items-center justify-center gap-3 px-4 py-16 border-2 border-dashed rounded-xl cursor-pointer transition-colors"
-        :class="isDragging ? 'border-[#E11D48] bg-[#E11D4808]' : 'border-[#E0E0E0] hover:border-[#E11D48] hover:bg-[#FAFAFA]'"
+        class="flex flex-col items-center justify-center gap-3 px-4 py-16 border-2 border-dashed rounded-xl cursor-pointer transition-[border-color,background-color] duration-200"
+        :class="isDragging
+          ? 'border-[var(--color-brand)] bg-[var(--color-brand-tint)]'
+          : 'border-[var(--color-border)] hover:border-[var(--color-brand)] hover:bg-[var(--color-hairline)]/60'"
         @dragover.prevent="isDragging = true"
         @dragleave.prevent="isDragging = false"
         @drop.prevent="onDrop"
       >
-        <div class="w-12 h-12 rounded-full bg-[#E11D481A] flex items-center justify-center">
-          <ArrowUpTrayIcon class="w-6 h-6 text-[#E11D48]" />
+        <div class="w-14 h-14 rounded-2xl bg-[var(--color-brand-soft)] flex items-center justify-center text-[var(--color-brand-dark)] shadow-rose">
+          <ArrowUpTrayIcon class="w-6 h-6" />
         </div>
         <div class="text-center">
-          <p class="text-[14px] font-semibold text-[#0A0A0A]">
-            <span class="text-[#BE123C]">Click to choose</span>
-            <span class="text-gray-600"> or drag &amp; drop</span>
+          <p class="text-[14px] font-semibold text-[var(--color-ink)]">
+            <span class="text-[var(--color-brand-dark)]">Click to choose</span>
+            <span class="text-[var(--color-muted)]"> or drag &amp; drop</span>
           </p>
-          <p class="text-[12px] text-gray-400 mt-1">Drop your Nono Club POS export here</p>
+          <p class="text-[12px] text-[var(--color-muted-2)] mt-1">Drop your Nono Club POS export here.</p>
         </div>
         <input type="file" accept="application/pdf" class="hidden" @change="onPickFile">
       </label>
 
       <div
         v-else
-        class="flex items-center gap-3 px-4 py-4 border border-[#E0E0E0] rounded-xl bg-[#FAFAFA]"
+        class="flex items-center gap-3 px-4 py-4 border border-[var(--color-border-2)] rounded-xl bg-[var(--color-hairline)]/60"
       >
-        <div class="w-10 h-10 rounded-lg bg-[#E11D481A] flex items-center justify-center shrink-0">
-          <DocumentTextIcon class="w-5 h-5 text-[#E11D48]" />
+        <div class="w-10 h-10 rounded-lg bg-[var(--color-brand-soft)] flex items-center justify-center shrink-0 text-[var(--color-brand-dark)]">
+          <DocumentTextIcon class="w-5 h-5" />
         </div>
         <div class="min-w-0 flex-1">
-          <p class="text-[13px] font-semibold text-[#0A0A0A] truncate">{{ file.name }}</p>
-          <p class="text-[11px] text-gray-500">{{ (file.size / 1024).toFixed(0) }} KB · ready to parse</p>
+          <p class="text-[13px] font-semibold text-[var(--color-ink)] truncate">{{ file.name }}</p>
+          <p class="text-[11px] text-[var(--color-muted)] tabular">{{ (file.size / 1024).toFixed(0) }} KB · ready to parse</p>
         </div>
         <button
           type="button"
-          class="w-8 h-8 rounded-lg hover:bg-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-700 shrink-0"
+          class="press w-8 h-8 rounded-lg hover:bg-[var(--color-surface-2)] flex items-center justify-center text-[var(--color-muted-2)] hover:text-[var(--color-ink)] shrink-0"
           aria-label="Remove file"
           @click="file = null; error = ''"
         >
@@ -168,7 +178,7 @@ function rowStatus(r: ParsedRow): { tone: 'slate' | 'emerald' | 'amber'; label: 
         </button>
       </div>
 
-      <p v-if="error" class="mt-3 text-[12px] text-red-600">{{ error }}</p>
+      <p v-if="error" class="mt-3 text-[12px] text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">{{ error }}</p>
 
       <div class="mt-5 flex flex-col sm:flex-row sm:justify-end gap-2">
         <AppButton class="w-full sm:w-auto" :disabled="!file || parsing" @click="parse">
@@ -180,14 +190,14 @@ function rowStatus(r: ParsedRow): { tone: 'slate' | 'emerald' | 'amber'; label: 
   </div>
 
   <!-- ===== STAGE 2 : PREVIEW & ASSIGN ===== -->
-  <div v-else-if="stage === 'preview'" class="space-y-5">
-    <!-- Header -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+  <div v-else-if="stage === 'preview'" class="space-y-6">
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
       <div>
-        <h2 class="text-[16px] font-bold text-[#0A0A0A]">Review parsed sales</h2>
-        <p class="text-[12px] text-gray-500 mt-0.5">
-          From <span class="font-medium text-gray-700">{{ file?.name }}</span>
-          <span v-if="dryRun.ambassadorHint" class="ml-2">· PDF hint: <span class="font-medium text-gray-700">{{ dryRun.ambassadorHint }}</span></span>
+        <p class="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-muted-2)]">Step 2 of 2</p>
+        <h2 class="font-display text-[20px] font-semibold text-[var(--color-ink)] tracking-tight">Review parsed sales</h2>
+        <p class="text-[12px] text-[var(--color-muted)] mt-1">
+          From <span class="font-medium text-[var(--color-ink)]">{{ file?.name }}</span>
+          <span v-if="dryRun.ambassadorHint" class="ml-2">· PDF hint: <span class="font-medium text-[var(--color-ink)]">{{ dryRun.ambassadorHint }}</span></span>
         </p>
       </div>
       <AppButton variant="secondary" class="w-full sm:w-auto" @click="reset">
@@ -198,61 +208,69 @@ function rowStatus(r: ParsedRow): { tone: 'slate' | 'emerald' | 'amber'; label: 
 
     <!-- Summary cards -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-      <AppCard label="PDF Total" prefix="RM " :value="formatRM(dryRun.headerTotal).replace(/^RM\s*/, '')" />
-      <AppCard label="Parsed Total" prefix="RM " :value="formatRM(dryRun.parsedTotal).replace(/^RM\s*/, '')" />
-      <AppCard label="Will Import" :value="readyRows.length" />
+      <AppCard label="PDF total" :prefix="'RM'" :value="formatRM(dryRun.headerTotal).replace(/^RM\s*/, '')" />
+      <AppCard label="Parsed total" :prefix="'RM'" :value="formatRM(dryRun.parsedTotal).replace(/^RM\s*/, '')" />
+      <AppCard accent label="Will import" :value="readyRows.length" />
       <AppCard label="Duplicates" :value="dryRun.duplicates.length" />
     </div>
 
-    <p v-if="totalsMismatch" class="text-[12px] text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-      ⚠ Header and parsed totals don't match. Double-check the PDF before importing.
+    <p v-if="totalsMismatch" class="text-[12px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3.5 py-2.5 inline-flex items-start gap-2">
+      <span aria-hidden="true">⚠</span>
+      Header and parsed totals don't match. Double-check the PDF before importing.
     </p>
 
     <!-- Per-row table -->
-    <div class="bg-white border border-[#E8E8EC] rounded-2xl shadow-sm overflow-hidden">
-      <div class="px-5 py-3 border-b border-[#F0F0F0] flex items-center justify-between">
-        <h3 class="text-[12px] font-bold uppercase tracking-wide text-gray-400">Sales rows</h3>
-        <p v-if="unassignedCount > 0" class="text-[12px] text-amber-700">
-          {{ unassignedCount }} row(s) need an ambassador
+    <div class="bg-[var(--color-card)] border border-[var(--color-border-2)] rounded-2xl shadow-card overflow-hidden">
+      <div class="px-5 py-3.5 border-b border-[var(--color-hairline)] flex items-center justify-between">
+        <p class="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-muted-2)]">Sales rows</p>
+        <p v-if="unassignedCount > 0" class="text-[12px] text-amber-800 inline-flex items-center gap-1.5">
+          <span class="w-1.5 h-1.5 rounded-full bg-amber-500" />
+          {{ unassignedCount }} row{{ unassignedCount === 1 ? '' : 's' }} need an ambassador
         </p>
-        <p v-else class="text-[12px] text-emerald-700">All assigned</p>
+        <p v-else class="text-[12px] text-emerald-800 inline-flex items-center gap-1.5">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500" /> All assigned
+        </p>
       </div>
       <div class="overflow-x-auto">
-        <table class="w-full min-w-[760px]">
+        <table class="w-full min-w-[760px] tabular">
           <thead>
-            <tr class="bg-[#FAFAFA] border-b border-[#F0F0F0]">
-              <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-gray-300">Date</th>
-              <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-gray-300">Order</th>
-              <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-gray-300">Table</th>
-              <th class="px-4 py-2.5 text-right text-[10px] font-bold uppercase tracking-wide text-gray-300">Amount</th>
-              <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-gray-300 w-[220px]">Ambassador</th>
-              <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-gray-300">Status</th>
+            <tr class="bg-[var(--color-hairline)] border-b border-[var(--color-border-2)]">
+              <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Date</th>
+              <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Order</th>
+              <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Table</th>
+              <th class="px-4 py-3 text-right text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Amount</th>
+              <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)] w-[220px]">Ambassador</th>
+              <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Status</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(row, i) in rows" :key="i" class="border-b border-[#F8F8F8] last:border-b-0 hover:bg-[#FAFCFC]">
-              <td class="px-4 py-3 text-[13px] text-gray-600">{{ formatDate(row.date) }}</td>
-              <td class="px-4 py-3 text-[12px] text-gray-500 font-mono">{{ row.externalOrderId }}</td>
-              <td class="px-4 py-3 text-[13px] text-gray-500">{{ row.tableNumber }}</td>
-              <td class="px-4 py-3 text-[13px] text-right font-semibold text-[#0A0A0A]">{{ formatRM(row.amount) }}</td>
+            <tr
+              v-for="(row, i) in rows"
+              :key="i"
+              class="border-b border-[var(--color-hairline)] last:border-b-0 hover:bg-[var(--color-hairline)]/60 transition-colors"
+            >
+              <td class="px-4 py-3 text-[13px] text-[var(--color-muted)]">{{ formatDate(row.date) }}</td>
+              <td class="px-4 py-3 text-[12px] text-[var(--color-muted)] font-mono">{{ row.externalOrderId }}</td>
+              <td class="px-4 py-3 text-[13px] text-[var(--color-muted)]">{{ row.tableNumber }}</td>
+              <td class="px-4 py-3 text-[13px] text-right font-semibold text-[var(--color-ink)]">{{ formatRM(row.amount) }}</td>
               <td class="px-4 py-3">
                 <select
                   v-if="!dupSet.has(row.externalOrderId)"
                   v-model="row.ambassadorId"
-                  class="w-full max-w-[200px] rounded-lg border px-2.5 py-1.5 text-[12px] bg-white outline-none focus:border-[#E11D48] focus:ring-2 focus:ring-[#E11D48]/10"
-                  :class="row.ambassadorId ? 'border-[#E0E0E0]' : 'border-amber-300 bg-amber-50'"
+                  class="w-full max-w-[200px] rounded-lg border px-2.5 py-1.5 text-[12px] bg-white outline-none focus:border-[var(--color-brand)] focus:ring-4 focus:ring-[var(--color-brand)]/12 transition-[border-color,box-shadow]"
+                  :class="row.ambassadorId ? 'border-[var(--color-border)]' : 'border-amber-300 bg-amber-50'"
                 >
                   <option value="">— Pick ambassador —</option>
                   <option v-for="a in (ambassadors ?? [])" :key="a.id" :value="a.id">{{ a.name }}</option>
                 </select>
-                <span v-else class="text-[12px] text-gray-400 italic">—</span>
+                <span v-else class="text-[12px] text-[var(--color-muted-2)] italic">—</span>
               </td>
               <td class="px-4 py-3">
                 <AppBadge :tone="rowStatus(row).tone">{{ rowStatus(row).label }}</AppBadge>
               </td>
             </tr>
             <tr v-if="rows.length === 0">
-              <td colspan="6" class="px-4 py-12 text-center text-[13px] text-gray-400">No rows parsed.</td>
+              <td colspan="6" class="px-4 py-12 text-center text-[13px] text-[var(--color-muted-2)]">No rows parsed.</td>
             </tr>
           </tbody>
         </table>
@@ -260,39 +278,30 @@ function rowStatus(r: ParsedRow): { tone: 'slate' | 'emerald' | 'amber'; label: 
     </div>
 
     <!-- Footer action bar -->
-    <div class="bg-white border border-[#E8E8EC] rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-      <div class="flex flex-col sm:flex-row sm:items-center gap-3">
-        <span class="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Import as</span>
-        <div class="flex items-center gap-1.5">
-          <button
-            v-for="opt in [{ value: 'draft', label: 'Draft' }, { value: 'confirmed', label: 'Confirmed' }]"
-            :key="opt.value"
-            type="button"
-            class="px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors border"
-            :class="status === opt.value
-              ? 'bg-[#0A0A0A] text-white border-[#0A0A0A]'
-              : 'bg-white text-gray-600 border-[#E0E0E0] hover:border-gray-400'"
-            @click="status = opt.value as any"
-          >
-            {{ opt.label }}
-          </button>
-        </div>
-      </div>
+    <div class="bg-[var(--color-card)] border border-[var(--color-border-2)] rounded-2xl p-4 shadow-card flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+      <AppPillGroup v-model="status" :options="statusOptions" label="Import as" />
       <AppButton class="w-full sm:w-auto" :disabled="!allAssigned || importing" @click="commit">
-        {{ importing ? 'Importing…' : `Import ${readyRows.length} row(s)` }}
+        {{ importing ? 'Importing…' : `Import ${readyRows.length} row${readyRows.length === 1 ? '' : 's'}` }}
       </AppButton>
     </div>
   </div>
 
   <!-- ===== STAGE 3 : DONE ===== -->
   <div v-else class="space-y-5 max-w-3xl mx-auto">
-    <div class="bg-white border border-[#E8E8EC] rounded-2xl p-6 shadow-sm flex items-start gap-4">
-      <CheckCircleIcon class="w-8 h-8 text-emerald-600 shrink-0" />
-      <div class="flex-1">
-        <p class="text-[15px] font-semibold text-[#0A0A0A]">Import complete</p>
-        <p class="text-[12px] text-gray-500 mt-0.5">
-          Imported <span class="font-medium text-[#0A0A0A]">{{ result.imported }}</span> sale(s),
-          skipped <span class="font-medium text-[#0A0A0A]">{{ result.skipped }}</span>.
+    <div class="relative bg-[var(--color-card)] border border-[var(--color-border-2)] rounded-2xl p-6 shadow-card flex items-start gap-4 overflow-hidden">
+      <div
+        aria-hidden="true"
+        class="pointer-events-none absolute -top-16 -right-16 w-56 h-56 rounded-full opacity-30 blur-3xl"
+        style="background: radial-gradient(closest-side, #10b981 0%, transparent 70%);"
+      />
+      <div class="relative w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-700 shrink-0 ring-1 ring-emerald-200">
+        <CheckCircleIcon class="w-6 h-6" />
+      </div>
+      <div class="relative flex-1">
+        <p class="font-display text-[18px] font-semibold text-[var(--color-ink)] tracking-tight">Import complete</p>
+        <p class="text-[12px] text-[var(--color-muted)] mt-1 tabular">
+          Imported <span class="font-semibold text-[var(--color-ink)]">{{ result.imported }}</span> sale{{ result.imported === 1 ? '' : 's' }},
+          skipped <span class="font-semibold text-[var(--color-ink)]">{{ result.skipped }}</span>.
         </p>
         <div class="mt-4 flex flex-col sm:flex-row gap-2">
           <AppButton variant="secondary" @click="reset">Import another file</AppButton>

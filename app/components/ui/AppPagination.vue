@@ -28,43 +28,52 @@ function changePerPage(e: Event) {
 </script>
 
 <template>
-  <div class="bg-white border border-[#E8E8EC] rounded-2xl p-4 shadow-sm flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-    <p class="text-[13px] text-gray-500">
+  <div class="bg-[var(--color-card)] border border-[var(--color-border-2)] rounded-2xl px-4 py-3 shadow-card flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+    <p class="text-[13px] text-[var(--color-muted)] tabular">
       <template v-if="total === 0">No results.</template>
       <template v-else>
-        Showing <span class="font-medium text-[#0A0A0A]">{{ rangeStart }}</span>–<span class="font-medium text-[#0A0A0A]">{{ rangeEnd }}</span>
-        of <span class="font-medium text-[#0A0A0A]">{{ total }}</span>
+        Showing <span class="font-semibold text-[var(--color-ink)]">{{ rangeStart }}</span>–<span class="font-semibold text-[var(--color-ink)]">{{ rangeEnd }}</span>
+        of <span class="font-semibold text-[var(--color-ink)]">{{ total }}</span>
       </template>
     </p>
     <div class="flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-end">
-      <select
-        :value="perPage"
-        class="rounded-lg border border-[#E0E0E0] px-2 py-1.5 text-[12px] bg-white"
-        @change="changePerPage"
-      >
-        <option :value="25">25 per page</option>
-        <option :value="50">50 per page</option>
-        <option :value="100">100 per page</option>
-      </select>
-      <div class="flex items-center gap-2">
+      <div class="relative">
+        <select
+          :value="perPage"
+          class="appearance-none rounded-lg border border-[var(--color-border)] pl-3 pr-8 py-1.5 text-[12px] bg-white tabular focus:border-[var(--color-brand)] focus:ring-4 focus:ring-[var(--color-brand)]/12 transition-[border-color,box-shadow]"
+          @change="changePerPage"
+        >
+          <option :value="25">25 per page</option>
+          <option :value="50">50 per page</option>
+          <option :value="100">100 per page</option>
+        </select>
+        <svg
+          aria-hidden="true"
+          class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--color-muted-2)]"
+          viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"
+        >
+          <path d="M6 8l4 4 4-4" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </div>
+      <div class="flex items-center gap-1.5">
         <button
           type="button"
-          class="w-8 h-8 rounded-lg border border-[#E0E0E0] bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center text-gray-500"
+          class="press w-8 h-8 rounded-lg border border-[var(--color-border)] bg-white hover:bg-[var(--color-hairline)] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center text-[var(--color-muted)]"
           :disabled="page <= 1"
-          @click="go(page - 1)"
           aria-label="Previous page"
+          @click="go(page - 1)"
         >
           <ChevronLeftIcon class="w-4 h-4" />
         </button>
-        <span class="text-[12px] text-gray-600 tabular-nums px-1">
-          Page {{ page }} of {{ lastPage }}
+        <span class="text-[12px] text-[var(--color-ink-soft)] tabular px-2 font-medium">
+          {{ page }} <span class="text-[var(--color-muted-2)] mx-0.5">/</span> {{ lastPage }}
         </span>
         <button
           type="button"
-          class="w-8 h-8 rounded-lg border border-[#E0E0E0] bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center text-gray-500"
+          class="press w-8 h-8 rounded-lg border border-[var(--color-border)] bg-white hover:bg-[var(--color-hairline)] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center text-[var(--color-muted)]"
           :disabled="page >= lastPage"
-          @click="go(page + 1)"
           aria-label="Next page"
+          @click="go(page + 1)"
         >
           <ChevronRightIcon class="w-4 h-4" />
         </button>

@@ -75,24 +75,27 @@ const roleTone = (r: string) => {
 </script>
 
 <template>
-  <div class="space-y-5">
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2">
+  <div class="space-y-6">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <p class="text-[13px] text-[var(--color-muted)] max-w-prose">
+        Manage who can sign in. Roles control what they can see and edit.
+      </p>
       <AppButton class="w-full sm:w-auto" @click="showAdd = true">+ New user</AppButton>
     </div>
 
     <AppTable :rows="users ?? []" empty-text="No users">
       <template #head>
-        <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-gray-300">Name</th>
-        <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-gray-300">Email</th>
-        <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-gray-300">Role</th>
-        <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-gray-300">Linked ambassador</th>
-        <th class="px-4 py-2.5" />
+        <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Name</th>
+        <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Email</th>
+        <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Role</th>
+        <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Linked ambassador</th>
+        <th class="px-4 py-3" />
       </template>
       <template #row="{ row }">
-        <td class="px-4 py-3 text-[13px] font-medium text-[#0A0A0A]">{{ row.name }}</td>
-        <td class="px-4 py-3 text-[13px] text-gray-500">{{ row.email }}</td>
+        <td class="px-4 py-3 text-[13px] font-medium text-[var(--color-ink)]">{{ row.name }}</td>
+        <td class="px-4 py-3 text-[13px] text-[var(--color-muted)]">{{ row.email }}</td>
         <td class="px-4 py-3"><AppBadge :tone="roleTone(row.role)">{{ row.role }}</AppBadge></td>
-        <td class="px-4 py-3 text-[13px] text-gray-500">
+        <td class="px-4 py-3 text-[13px] text-[var(--color-muted)]">
           {{ ambassadors?.find(a => a.id === row.ambassadorId)?.name ?? '—' }}
         </td>
         <td class="px-4 py-3 text-right">

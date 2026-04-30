@@ -20,7 +20,6 @@ watch(monthList, (list) => {
   if (list && list.length && !month.value) month.value = list[0]
 }, { immediate: true })
 
-// Pagination
 const page = ref(1)
 const perPage = ref(25)
 watch([month, ambassadorFilter], () => { page.value = 1 })
@@ -108,45 +107,46 @@ async function bulkConfirmDrafts() {
 </script>
 
 <template>
-  <div class="space-y-5">
+  <div class="space-y-6">
     <!-- Filter row -->
-    <div class="flex flex-col gap-3">
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <AppMonthPills v-model="month" :months="monthList ?? []" label="Month" empty-text="No sales recorded yet" />
-        <div class="flex flex-col sm:flex-row gap-2">
-          <AppButton
-            v-if="auth.isAdminOrOwner"
-            variant="secondary"
-            class="w-full sm:w-auto"
-            @click="bulkConfirmDrafts"
-          >
-            Confirm all drafts
-          </AppButton>
-          <AppButton class="w-full sm:w-auto" @click="openCreate">+ New sale</AppButton>
-        </div>
+    <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+      <AppMonthPills v-model="month" :months="monthList ?? []" label="Month" empty-text="No sales recorded yet" />
+      <div class="flex flex-col sm:flex-row gap-2">
+        <AppButton
+          v-if="auth.isAdminOrOwner"
+          variant="secondary"
+          class="w-full sm:w-auto"
+          @click="bulkConfirmDrafts"
+        >
+          Confirm all drafts
+        </AppButton>
+        <AppButton class="w-full sm:w-auto" @click="openCreate">+ New sale</AppButton>
       </div>
-      <div class="flex flex-col sm:flex-row gap-2 sm:items-center">
-        <span class="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Ambassador</span>
+    </div>
+
+    <div class="flex flex-col sm:flex-row gap-2 sm:items-center">
+      <span class="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Ambassador</span>
+      <div class="sm:min-w-[220px]">
         <AppSelect v-model="ambassadorFilter" :options="ambassadorFilterOptions" />
       </div>
     </div>
 
     <AppTable :rows="pagedSales" empty-text="No sales for this month">
       <template #head>
-        <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-gray-300">Date</th>
-        <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-gray-300">Ambassador</th>
-        <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-gray-300">Type</th>
-        <th class="px-4 py-2.5 text-right text-[10px] font-bold uppercase tracking-wide text-gray-300">Amount</th>
-        <th class="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide text-gray-300">Status</th>
-        <th class="px-4 py-2.5" />
+        <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Date</th>
+        <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Ambassador</th>
+        <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Type</th>
+        <th class="px-4 py-3 text-right text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Amount</th>
+        <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Status</th>
+        <th class="px-4 py-3" />
       </template>
       <template #row="{ row }">
-        <td class="px-4 py-3 text-[13px] text-gray-600">{{ formatDate(row.date) }}</td>
-        <td class="px-4 py-3 text-[13px] font-medium text-[#0A0A0A]">
+        <td class="px-4 py-3 text-[13px] text-[var(--color-muted)] tabular">{{ formatDate(row.date) }}</td>
+        <td class="px-4 py-3 text-[13px] font-medium text-[var(--color-ink)]">
           {{ ambassadors?.find(a => a.id === row.ambassadorId)?.name ?? row.ambassadorId }}
         </td>
-        <td class="px-4 py-3 text-[13px] text-gray-500">{{ row.type }}</td>
-        <td class="px-4 py-3 text-[13px] text-right font-semibold text-[#0A0A0A]">{{ formatRM(row.amount) }}</td>
+        <td class="px-4 py-3 text-[13px] text-[var(--color-muted)]">{{ row.type }}</td>
+        <td class="px-4 py-3 text-[13px] text-right font-semibold text-[var(--color-ink)] tabular">{{ formatRM(row.amount) }}</td>
         <td class="px-4 py-3"><SaleStatusBadge :status="row.status" /></td>
         <td class="px-4 py-3 text-right">
           <div class="inline-flex gap-1.5">

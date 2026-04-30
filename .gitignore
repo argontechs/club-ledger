@@ -29,3 +29,4 @@ coverage
 
 # Local file storage (receipts, payslips)
 .storage
+*.md
