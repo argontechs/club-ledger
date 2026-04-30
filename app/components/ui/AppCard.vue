@@ -5,8 +5,8 @@ const props = defineProps<{
   label?: string
   value?: string | number
   prefix?: string
-  accent?: boolean
   tone?: 'default' | 'inverted' | 'brand'
+  grain?: boolean
 }>()
 
 const tone = computed(() => props.tone ?? 'default')
@@ -34,15 +34,9 @@ const valueClass = computed(() => {
     :class="[
       'relative rounded-2xl p-5 overflow-hidden transition-shadow duration-300',
       surface,
+      grain ? 'grain' : '',
     ]"
   >
-    <!-- Accent rail for KPI emphasis -->
-    <span
-      v-if="accent && tone === 'default'"
-      aria-hidden="true"
-      class="absolute left-0 top-4 bottom-4 w-[3px] rounded-r-full bg-[var(--color-brand)]"
-    />
-
     <template v-if="label">
       <div class="flex items-start justify-between gap-2">
         <p
@@ -55,11 +49,11 @@ const valueClass = computed(() => {
       </div>
       <p
         :class="[
-          'num-display text-[30px] leading-none mt-3 font-semibold',
+          'num-display text-[22px] sm:text-[26px] lg:text-[30px] leading-none mt-3 font-semibold tabular-nums whitespace-nowrap',
           valueClass,
         ]"
       >
-        <span v-if="prefix" class="text-[18px] mr-0.5 opacity-70 align-top tracking-normal">{{ prefix.trim() }}</span>{{ value }}
+        <span v-if="prefix" class="text-[14px] sm:text-[16px] lg:text-[18px] mr-0.5 opacity-70 align-top tracking-normal">{{ prefix.trim() }}</span>{{ value }}
       </p>
       <slot />
     </template>

@@ -30,3 +30,5 @@ coverage
 # Local file storage (receipts, payslips)
 .storage
 *.md
+/.playwright-mcp
+DESIGN.json

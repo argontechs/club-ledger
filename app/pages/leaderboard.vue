@@ -45,12 +45,6 @@ const rest = computed(() => (rows.value ?? []).slice(3))
             : 'bg-[var(--color-card)] border-[var(--color-border-2)]',
         ]"
       >
-        <div
-          v-if="i === 0"
-          aria-hidden="true"
-          class="pointer-events-none absolute -bottom-16 -right-16 w-56 h-56 rounded-full opacity-40 blur-3xl"
-          style="background: radial-gradient(closest-side, var(--color-brand) 0%, transparent 70%);"
-        />
         <div class="relative flex items-center justify-between">
           <span
             class="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[10px] font-semibold tracking-tight"
@@ -91,7 +85,7 @@ const rest = computed(() => (rows.value ?? []).slice(3))
     </div>
 
     <!-- Remaining ranks -->
-    <AppTable v-if="rest.length || !podium.length" :rows="rest" :empty-text="podium.length ? 'No more entries' : 'No data'">
+    <AppTable v-if="rest.length || !podium.length" :rows="rest" :empty-text="podium.length ? 'No more entries past the podium.' : 'Quiet so far. The roster builds itself as confirmed sales roll in.'">
       <template #head>
         <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)] w-16">Rank</th>
         <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Ambassador</th>

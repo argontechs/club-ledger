@@ -26,7 +26,7 @@ function openDrawer() { drawer.value = true }
 
 <template>
   <header
-    class="bg-[var(--color-card)]/75 backdrop-blur-xl border-b border-[var(--color-border-2)] px-4 lg:px-8 py-3 lg:py-4 flex items-center justify-between gap-3 sticky top-0 z-20"
+    class="bg-[var(--color-card)] border-b border-[var(--color-border-2)] px-4 lg:px-8 py-3 lg:py-4 flex items-center justify-between gap-3 sticky top-0 z-20"
   >
     <div class="flex items-center gap-2 lg:gap-3 min-w-0">
       <button

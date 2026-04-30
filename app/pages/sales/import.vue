@@ -210,7 +210,7 @@ const statusOptions = [
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
       <AppCard label="PDF total" :prefix="'RM'" :value="formatRM(dryRun.headerTotal).replace(/^RM\s*/, '')" />
       <AppCard label="Parsed total" :prefix="'RM'" :value="formatRM(dryRun.parsedTotal).replace(/^RM\s*/, '')" />
-      <AppCard accent label="Will import" :value="readyRows.length" />
+      <AppCard tone="brand" label="Will import" :value="readyRows.length" />
       <AppCard label="Duplicates" :value="dryRun.duplicates.length" />
     </div>
 

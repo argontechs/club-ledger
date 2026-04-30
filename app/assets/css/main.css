@@ -8,7 +8,7 @@
   --color-muted-2: #9A9AA1;
   --color-surface: #F4F2EE;     /* warm canvas */
   --color-surface-2: #ECE9E3;   /* deeper warm */
-  --color-card: #FFFFFF;
+  --color-card: #FEFDFB;
   --color-border: #E6E1D9;
   --color-border-2: #EFEAE2;
   --color-hairline: #F2EEE7;
@@ -37,7 +37,11 @@
 
 @layer base {
   html, body, #__nuxt { height: 100%; }
-  html { scroll-behavior: smooth; }
+  html {
+    scroll-behavior: smooth;
+    /* Force light system widgets (select dropdowns, scrollbars, autofill) on dark-mode systems. The whole palette is warm cream and would clash with macOS/Chrome dark native popups. */
+    color-scheme: light;
+  }
   body {
     background-color: var(--color-surface);
     color: var(--color-ink);
@@ -115,9 +119,13 @@
   .text-balance { text-wrap: balance; }
   .text-pretty  { text-wrap: pretty; }
 
-  /* Spring press */
+  /* Press feedback — soft mechanical, no overshoot */
   .press {
-    transition: transform 180ms var(--ease-spring), box-shadow 180ms var(--ease-out-soft), background-color 180ms var(--ease-out-soft), border-color 180ms var(--ease-out-soft);
+    transition: transform 180ms var(--ease-out-soft), box-shadow 180ms var(--ease-out-soft), background-color 180ms var(--ease-out-soft), border-color 180ms var(--ease-out-soft);
   }
   .press:active { transform: translateY(1px) scale(0.985); }
+  @media (prefers-reduced-motion: reduce) {
+    .press { transition: none; }
+    .press:active { transform: none; }
+  }
 }

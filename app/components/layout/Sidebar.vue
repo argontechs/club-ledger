@@ -30,7 +30,7 @@ function logout() {
 
 <template>
   <aside
-    class="flex flex-col w-[232px] bg-[var(--color-card)]/85 backdrop-blur-xl border-r border-[var(--color-border-2)] h-screen sticky top-0 shrink-0"
+    class="flex flex-col w-[232px] bg-[var(--color-card)] border-r border-[var(--color-border-2)] h-screen sticky top-0 shrink-0"
   >
     <!-- Logo -->
     <div class="flex items-center gap-3 px-4 py-5">
@@ -61,11 +61,6 @@ function logout() {
             ? 'bg-[var(--color-ink)] text-white font-semibold shadow-card'
             : 'text-[var(--color-muted)] hover:bg-[var(--color-hairline)] hover:text-[var(--color-ink)]'"
         >
-          <span
-            v-if="isActive(item.to)"
-            aria-hidden="true"
-            class="absolute -left-2.5 top-2 bottom-2 w-1 rounded-r-full bg-[var(--color-brand)]"
-          />
           <component
             :is="sidebarIconMap[item.icon]"
             class="w-[15px] h-[15px] shrink-0"

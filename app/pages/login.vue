@@ -27,17 +27,9 @@ async function submit() {
 </script>
 
 <template>
-  <div class="relative min-h-dvh bg-[var(--color-surface)] flex items-center justify-center p-4 overflow-hidden">
-    <!-- Ambient brand wash -->
-    <div aria-hidden="true" class="pointer-events-none absolute inset-0">
-      <div class="absolute -top-40 -right-32 w-[640px] h-[640px] rounded-full opacity-30 blur-3xl"
-        style="background: radial-gradient(closest-side, var(--color-brand) 0%, transparent 70%);" />
-      <div class="absolute -bottom-32 -left-24 w-[520px] h-[520px] rounded-full opacity-20 blur-3xl"
-        style="background: radial-gradient(closest-side, var(--color-ember) 0%, transparent 70%);" />
-    </div>
-
+  <div class="grain min-h-dvh bg-[var(--color-surface)] flex items-center justify-center p-4">
     <form
-      class="relative w-[400px] max-w-full bg-[var(--color-card)]/90 backdrop-blur-xl rounded-2xl border border-[var(--color-border-2)] shadow-lift p-7 space-y-5"
+      class="relative w-[400px] max-w-full bg-[var(--color-card)] rounded-2xl border border-[var(--color-border-2)] shadow-lift p-7 space-y-5"
       @submit.prevent="submit"
     >
       <div class="flex flex-col items-center gap-3">

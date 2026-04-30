@@ -73,10 +73,38 @@ export async function loadCommissions(month: string): Promise<CommissionRow[]> {
     .from(schema.users)
     .innerJoin(schema.roles, eq(schema.roles.id, schema.users.roleId))
     .where(isNull(schema.users.deletedAt))
+
+  const ambassadorRows = await db.select({
+    id: schema.ambassadors.id,
+    name: schema.ambassadors.name,
+  })
+    .from(schema.ambassadors)
+    .where(isNull(schema.ambassadors.deletedAt))
+
   const saleRows = await db.select().from(schema.sales).where(like(schema.sales.date, `${month}%`))
+
+  // Build a unified earner list: every active ambassador becomes an entry, with
+  // role/userId carried over from the linked user when one exists. Ambassadors
+  // without a login show up here too, which matches the data model — every
+  // confirmed sale earns its ambassador 8%, regardless of whether they sign in.
+  const userByAmbassador = new Map<number, typeof userRows[number]>()
+  for (const u of userRows) {
+    if (u.ambassadorId != null) userByAmbassador.set(u.ambassadorId, u)
+  }
+
+  const earners = ambassadorRows.map(a => {
+    const u = userByAmbassador.get(a.id)
+    return {
+      id: u?.id ?? -a.id,           // synthetic negative id when no user is linked
+      name: a.name,
+      role: u?.role ?? 'ambassador',
+      ambassadorId: a.id,
+    }
+  })
+
   return computeCommissions({
     month,
-    users: userRows.map(u => ({ id: u.id, name: u.name, role: u.role, ambassadorId: u.ambassadorId ?? null })),
+    users: earners,
     sales: saleRows.map(s => ({
       id: s.id, date: s.date, ambassadorId: s.ambassadorId, amount: s.amount,
       status: s.status, type: s.type,

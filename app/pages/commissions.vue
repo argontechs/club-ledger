@@ -2,8 +2,10 @@
 import { formatRM } from '~/utils/currency'
 
 const month = ref('')
+const ambassadorFilter = ref<number | ''>('')
 const { data: monthList } = useAPI<string[]>('/commissions/months')
 const { data: rows } = useAPI<any[]>(() => month.value ? `/commissions?month=${month.value}` : '')
+const { data: ambassadors } = useAPI<any[]>('/ambassadors')
 
 watch(monthList, (list) => {
   if (list && list.length && !month.value) month.value = list[0]
@@ -14,6 +16,30 @@ const monthLabel = computed(() => {
   const [y, m] = month.value.split('-').map(Number)
   return new Date(y, m - 1).toLocaleString('en-US', { month: 'long', year: 'numeric' })
 })
+
+const filteredRows = computed(() => {
+  const list = rows.value ?? []
+  if (!ambassadorFilter.value) return list
+  return list.filter(r => r.ambassadorId === Number(ambassadorFilter.value))
+})
+
+const summary = computed(() => {
+  const list = filteredRows.value
+  const totalOwnSales = list.reduce((a, r) => a + Number(r.ownSales || 0), 0)
+  const totalCommission = list.reduce((a, r) => a + Number(r.total || 0), 0)
+  const totalBonus = list.reduce((a, r) => a + Number(r.bonus || 0), 0)
+  return [
+    { label: 'Earners', value: list.length, tone: 'ink' as const },
+    { label: 'Sales pool', prefix: 'RM', value: formatRM(totalOwnSales).replace(/^RM\s*/, '') },
+    { label: 'Commissions', prefix: 'RM', value: formatRM(totalCommission).replace(/^RM\s*/, '') },
+    { label: 'Owner+admin bonus', prefix: 'RM', value: formatRM(totalBonus).replace(/^RM\s*/, '') },
+  ]
+})
+
+const ambassadorFilterOptions = computed(() => [
+  { value: '', label: 'All ambassadors' },
+  ...((ambassadors.value ?? []).map(a => ({ value: a.id, label: a.name }))),
+])
 
 const roleTone = (r: string) => {
   if (r === 'owner' || r === 'admin') return 'rose'
@@ -32,7 +58,16 @@ const roleTone = (r: string) => {
       <AppMonthPills v-model="month" :months="monthList ?? []" label="Month" empty-text="No sales recorded yet" />
     </div>
 
-    <AppTable :rows="rows ?? []" empty-text="No commissions for this month">
+    <AppStatStrip :stats="summary" />
+
+    <div class="flex flex-col sm:flex-row gap-2 sm:items-center">
+      <span class="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Ambassador</span>
+      <div class="sm:min-w-[220px]">
+        <AppSelect v-model="ambassadorFilter" :options="ambassadorFilterOptions" />
+      </div>
+    </div>
+
+    <AppTable :rows="filteredRows" empty-text="Commissions appear once sales are confirmed.">
       <template #head>
         <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Name</th>
         <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Role</th>

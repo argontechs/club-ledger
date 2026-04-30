@@ -56,6 +56,20 @@ const pagedRows = computed(() => {
   return filteredRows.value.slice(start, start + perPage.value)
 })
 
+const summary = computed(() => {
+  const list = rows.value ?? []
+  const paid = list.filter(r => !!r.paidAt)
+  const unpaid = list.filter(r => !r.paidAt)
+  const paidAmt = paid.reduce((a, r) => a + Number(r.amount || 0), 0)
+  const unpaidAmt = unpaid.reduce((a, r) => a + Number(r.amount || 0), 0)
+  return [
+    { label: 'Payouts this month', value: list.length, tone: 'ink' as const },
+    { label: 'Paid out', prefix: 'RM', value: formatRM(paidAmt).replace(/^RM\s*/, '') },
+    { label: 'Outstanding', prefix: 'RM', value: formatRM(unpaidAmt).replace(/^RM\s*/, ''), tone: unpaidAmt > 0 ? 'brand' as const : undefined },
+    { label: 'Recipients', value: new Set(list.map(r => r.ambassadorId)).size },
+  ]
+})
+
 async function markPaid(id: number) {
   try {
     await m.post(`/payouts/${id}/mark-paid`, {})
@@ -170,9 +184,11 @@ const statusOptions = [
       <AppButton class="w-full sm:w-auto" @click="showCreate = true">+ Create payouts</AppButton>
     </div>
 
+    <AppStatStrip :stats="summary" />
+
     <AppPillGroup v-model="statusFilter" :options="statusOptions" label="Status" />
 
-    <AppTable :rows="pagedRows" empty-text="No payouts for this filter">
+    <AppTable :rows="pagedRows" empty-text="No payouts for this filter. Use + Create payouts to settle the pool.">
       <template #head>
         <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Ambassador</th>
         <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Period</th>

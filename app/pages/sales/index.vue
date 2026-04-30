@@ -30,6 +30,20 @@ const pagedSales = computed(() => {
   return list.slice(start, start + perPage.value)
 })
 
+const summary = computed(() => {
+  const list = rows.value ?? []
+  const confirmed = list.filter(r => r.status === 'confirmed')
+  const drafts = list.filter(r => r.status === 'draft')
+  const total = confirmed.reduce((a, r) => a + Number(r.amount || 0), 0)
+  const ambIds = new Set(list.map(r => r.ambassadorId))
+  return [
+    { label: 'Confirmed', value: confirmed.length, tone: 'ink' as const },
+    { label: 'Total this month', prefix: 'RM', value: formatRM(total).replace(/^RM\s*/, '') },
+    { label: 'Active ambassadors', value: ambIds.size },
+    { label: 'Drafts pending', value: drafts.length },
+  ]
+})
+
 const showCreate = ref(false)
 const m = useAPIMutation()
 const confirm = useConfirm()
@@ -124,6 +138,8 @@ async function bulkConfirmDrafts() {
       </div>
     </div>
 
+    <AppStatStrip :stats="summary" />
+
     <div class="flex flex-col sm:flex-row gap-2 sm:items-center">
       <span class="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Ambassador</span>
       <div class="sm:min-w-[220px]">
@@ -131,7 +147,7 @@ async function bulkConfirmDrafts() {
       </div>
     </div>
 
-    <AppTable :rows="pagedSales" empty-text="No sales for this month">
+    <AppTable :rows="pagedSales" empty-text="Nothing recorded for this period yet. Drop a POS PDF onto Import, or click + New sale.">
       <template #head>
         <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Date</th>
         <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Ambassador</th>

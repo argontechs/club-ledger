@@ -39,7 +39,7 @@ watch(() => route.path, () => { drawer.value = false })
     <Transition name="fade">
       <div
         v-if="drawer"
-        class="fixed inset-0 bg-[#1a120c]/45 backdrop-blur-sm z-40 lg:hidden"
+        class="fixed inset-0 bg-[#1a120c]/45 z-40 lg:hidden"
         @click="close"
       />
     </Transition>
@@ -87,11 +87,6 @@ watch(() => route.path, () => { drawer.value = false })
                 : 'text-[var(--color-muted)] hover:bg-[var(--color-hairline)] hover:text-[var(--color-ink)]'"
               @click="close"
             >
-              <span
-                v-if="isActive(item.to)"
-                aria-hidden="true"
-                class="absolute -left-2.5 top-2 bottom-2 w-1 rounded-r-full bg-[var(--color-brand)]"
-              />
               <component
                 :is="sidebarIconMap[item.icon]"
                 class="w-[15px] h-[15px] shrink-0"

@@ -26,12 +26,12 @@ defineProps<{ rows: T[]; loading?: boolean; emptyText?: string }>()
             </tr>
           </template>
           <tr v-else-if="rows.length === 0">
-            <td colspan="999" class="p-14 text-center">
+            <td colspan="999" class="px-6 py-14 text-center">
               <div class="flex flex-col items-center gap-3 text-[var(--color-muted-2)]">
                 <div class="w-12 h-12 rounded-2xl bg-[var(--color-surface-2)] flex items-center justify-center">
                   <InboxIcon class="w-6 h-6" />
                 </div>
-                <p class="text-[13px] font-medium text-[var(--color-muted)]">{{ emptyText ?? 'No data yet' }}</p>
+                <p class="text-[13px] font-medium text-[var(--color-muted)] max-w-[44ch] text-balance text-pretty leading-relaxed">{{ emptyText ?? 'Nothing here yet.' }}</p>
               </div>
             </td>
           </tr>
