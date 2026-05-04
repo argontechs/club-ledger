@@ -84,6 +84,10 @@ function reset() {
   error.value = ''
 }
 
+function removeRow(i: number) {
+  rows.value.splice(i, 1)
+}
+
 const m = useAPIMutation()
 const toast = useToast()
 async function commit() {
@@ -241,6 +245,7 @@ const statusOptions = [
               <th class="px-4 py-3 text-right text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Amount</th>
               <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)] w-[220px]">Ambassador</th>
               <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Status</th>
+              <th class="px-4 py-3 text-right text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)] w-[56px]"><span class="sr-only">Actions</span></th>
             </tr>
           </thead>
           <tbody>
@@ -268,9 +273,20 @@ const statusOptions = [
               <td class="px-4 py-3">
                 <AppBadge :tone="rowStatus(row).tone">{{ rowStatus(row).label }}</AppBadge>
               </td>
+              <td class="px-4 py-3 text-right">
+                <button
+                  type="button"
+                  class="press w-7 h-7 rounded-lg hover:bg-rose-50 flex items-center justify-center text-[var(--color-muted-2)] hover:text-rose-700 transition-colors ml-auto"
+                  aria-label="Remove this row"
+                  title="Remove row"
+                  @click="removeRow(i)"
+                >
+                  <XMarkIcon class="w-4 h-4" />
+                </button>
+              </td>
             </tr>
             <tr v-if="rows.length === 0">
-              <td colspan="6" class="px-4 py-12 text-center text-[13px] text-[var(--color-muted-2)]">No rows parsed.</td>
+              <td colspan="7" class="px-4 py-12 text-center text-[13px] text-[var(--color-muted-2)]">No rows parsed.</td>
             </tr>
           </tbody>
         </table>

@@ -11,7 +11,7 @@ const CreateSchema = z.object({
   type: z.enum(['Table', 'BGO']),
   amount: z.number().nonnegative(),
   notes: z.string().nullish(),
-  tableNumber: z.string().nullish(),
+  tableNumber: z.string().min(1, 'Table number is required'),
   externalOrderId: z.string().nullish(),
 })
 

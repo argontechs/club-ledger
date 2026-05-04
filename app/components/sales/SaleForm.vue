@@ -10,8 +10,10 @@ const emit = defineEmits<{ (e: 'submit', payload: any): void }>()
 const date = ref(new Date().toISOString().slice(0, 10))
 const ambassadorId = ref<number | null>(null)
 const type = ref<'Table' | 'BGO'>('Table')
-const amount = ref<number>(0)
+const amount = ref<number | string>('')
+const tableNumber = ref('')
 const notes = ref('')
+const formError = ref('')
 
 // Prefill from latest-defaults in create mode
 onMounted(async () => {
@@ -30,10 +32,28 @@ onMounted(async () => {
 })
 
 function submit() {
-  if (!ambassadorId.value) return
+  formError.value = ''
+  if (!ambassadorId.value) {
+    formError.value = 'Pick an ambassador before saving.'
+    return
+  }
+  const trimmedTable = tableNumber.value.trim()
+  if (!trimmedTable) {
+    formError.value = 'Table number is required.'
+    return
+  }
+  const numericAmount = Number(amount.value)
+  if (!Number.isFinite(numericAmount) || numericAmount < 0) {
+    formError.value = 'Amount must be zero or a positive number.'
+    return
+  }
   emit('submit', {
-    date: date.value, ambassadorId: ambassadorId.value, type: type.value,
-    amount: Number(amount.value), notes: notes.value || null,
+    date: date.value,
+    ambassadorId: Number(ambassadorId.value),
+    type: type.value,
+    amount: numericAmount,
+    tableNumber: trimmedTable,
+    notes: notes.value.trim() || null,
   })
 }
 </script>
@@ -51,8 +71,10 @@ function submit() {
       label="Type"
       :options="[{ value: 'Table', label: 'Table' }, { value: 'BGO', label: 'BGO' }]"
     />
-    <AppInput v-model="amount" type="number" label="Amount (RM)" />
+    <AppInput v-model="tableNumber" label="Table number" placeholder="e.g. T12" />
+    <AppInput v-model="amount" type="number" label="Amount (RM)" placeholder="0.00" />
     <AppInput v-model="notes" label="Notes (optional)" />
+    <p v-if="formError" class="text-[12px] text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">{{ formError }}</p>
     <div class="pt-2 flex justify-end">
       <AppButton type="submit">Save draft</AppButton>
     </div>

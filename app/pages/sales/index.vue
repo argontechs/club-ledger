@@ -14,7 +14,7 @@ const salesUrl = computed(() => {
 })
 const { data: rows, refresh } = useAPI<any[]>(() => salesUrl.value)
 const { data: ambassadors } = useAPI<any[]>('/ambassadors')
-const { data: monthList } = useAPI<string[]>('/sales/months')
+const { data: monthList, refresh: refreshMonths } = useAPI<string[]>('/sales/months')
 
 watch(monthList, (list) => {
   if (list && list.length && !month.value) month.value = list[0]
@@ -60,9 +60,16 @@ async function openCreate() {
 
 async function onCreate(payload: any) {
   try {
-    await m.post('/sales', payload)
+    const created = await m.post<{ date: string }>('/sales', payload)
     showCreate.value = false
-    await refresh()
+    await refreshMonths()
+    const createdMonth = created?.date?.slice(0, 7)
+    if (createdMonth && createdMonth !== month.value) {
+      // Jumping months triggers the salesUrl watcher → list reloads automatically
+      month.value = createdMonth
+    } else {
+      await refresh()
+    }
     toast.success('Sale created')
   } catch (e: any) {
     toast.error(e?.data?.error?.message || 'Failed to create sale')
@@ -152,6 +159,7 @@ async function bulkConfirmDrafts() {
         <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Date</th>
         <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Ambassador</th>
         <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Type</th>
+        <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Table</th>
         <th class="px-4 py-3 text-right text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Amount</th>
         <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Status</th>
         <th class="px-4 py-3" />
@@ -162,6 +170,7 @@ async function bulkConfirmDrafts() {
           {{ ambassadors?.find(a => a.id === row.ambassadorId)?.name ?? row.ambassadorId }}
         </td>
         <td class="px-4 py-3 text-[13px] text-[var(--color-muted)]">{{ row.type }}</td>
+        <td class="px-4 py-3 text-[13px] text-[var(--color-muted)] tabular">{{ row.tableNumber || '—' }}</td>
         <td class="px-4 py-3 text-[13px] text-right font-semibold text-[var(--color-ink)] tabular">{{ formatRM(row.amount) }}</td>
         <td class="px-4 py-3"><SaleStatusBadge :status="row.status" /></td>
         <td class="px-4 py-3 text-right">
