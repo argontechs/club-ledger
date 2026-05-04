@@ -255,7 +255,10 @@ const statusOptions = [
               class="border-b border-[var(--color-hairline)] last:border-b-0 hover:bg-[var(--color-hairline)]/60 transition-colors"
             >
               <td class="px-4 py-3 text-[13px] text-[var(--color-muted)]">{{ formatDate(row.date) }}</td>
-              <td class="px-4 py-3 text-[12px] text-[var(--color-muted)] font-mono">{{ row.externalOrderId }}</td>
+              <td class="px-4 py-3 text-[12px] font-mono">
+                <span v-if="row.externalOrderId.startsWith('M-')" class="text-[var(--color-muted-2)] italic" title="No order ID in PDF — synthesized from date + table + amount">—</span>
+                <span v-else class="text-[var(--color-muted)]">{{ row.externalOrderId }}</span>
+              </td>
               <td class="px-4 py-3 text-[13px] text-[var(--color-muted)]">{{ row.tableNumber }}</td>
               <td class="px-4 py-3 text-[13px] text-right font-semibold text-[var(--color-ink)]">{{ formatRM(row.amount) }}</td>
               <td class="px-4 py-3">

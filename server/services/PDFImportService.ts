@@ -21,6 +21,8 @@ export interface ParseResult {
 }
 
 const ROW_RE = /(\d{4}-\d{2}-\d{2})\s+(T\d{15})\s+\S+\s+\S+\s+\S+\s+\S+\s+(\S+)\s+(.+?)\s+\S+\s+RM\s+([\d,.\-]+)\s+RM\s*([\d,.\-]+)/g
+// Rows where the POS export omits the order ID (column shows "-") but still has a real amount.
+const ORPHAN_ROW_RE = /(\d{4}-\d{2}-\d{2})\s+-\s+(\S+)\s+(.+?)\s+\S+\s+RM\s+([\d,.\-]+)\s+RM\s*([\d,.\-]+)/g
 const HEADER_TOTAL_RE = /总计\s+RM\s*([\d,.]+)\s+RM\s*([\d,.]+)/
 const HINT_RE = /AGENT COMMISSION ON\s+(.+?)\s+(?:营业|总计|\d{4}-\d{2}-\d{2})/i
 
@@ -29,6 +31,13 @@ function toNumber(rmCell: string): number | null {
   if (cleaned === '-' || cleaned === '') return null
   const n = Number(cleaned)
   return Number.isFinite(n) ? n : null
+}
+
+function syntheticOrderId(date: string, tableNumber: string, amount: number): string {
+  const ymd = date.replace(/-/g, '').slice(2) // YYMMDD
+  const cents = Math.round(amount * 100)
+  const safeTable = tableNumber.replace(/[^A-Za-z0-9]/g, '')
+  return `M-${ymd}-${safeTable}-${cents}`
 }
 
 export async function parsePdfBuffer(buf: Buffer): Promise<ParseResult> {
@@ -48,11 +57,21 @@ export async function parsePdfBuffer(buf: Buffer): Promise<ParseResult> {
   let m: RegExpExecArray | null
   ROW_RE.lastIndex = 0
   while ((m = ROW_RE.exec(normalized))) {
-    const [, date, orderId, tableNumber, , amountCell] = m
+    const date = m[1]!, orderId = m[2]!, tableNumber = m[3]!, amountCell = m[5]!
     const amount = toNumber(amountCell)
     if (amount === null) continue
     rows.push({ date, externalOrderId: orderId, tableNumber, amount })
   }
+
+  ORPHAN_ROW_RE.lastIndex = 0
+  while ((m = ORPHAN_ROW_RE.exec(normalized))) {
+    const date = m[1]!, tableNumber = m[2]!, amountCell = m[4]!
+    const amount = toNumber(amountCell)
+    if (amount === null) continue
+    rows.push({ date, externalOrderId: syntheticOrderId(date, tableNumber, amount), tableNumber, amount })
+  }
+
+  rows.sort((a, b) => a.date.localeCompare(b.date) || a.externalOrderId.localeCompare(b.externalOrderId))
 
   return { ambassadorHint, headerTotal, rows, errors }
 }
@@ -61,7 +80,7 @@ const CommitSchema = z.object({
   status: z.enum(['draft', 'confirmed']).default('draft'),
   rows: z.array(z.object({
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-    externalOrderId: z.string().regex(/^T\d{15}$/),
+    externalOrderId: z.string().regex(/^(T\d{15}|M-\d{6}-[A-Za-z0-9]+-\d+)$/),
     tableNumber: z.string(),
     amount: z.number().positive(),
     ambassadorId: z.number().int().positive(),
