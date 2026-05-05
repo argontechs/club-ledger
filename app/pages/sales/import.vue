@@ -110,7 +110,11 @@ async function commit() {
     })
     toast.success(`Imported ${result.value?.imported ?? 0} sale(s)`)
   } catch (e: any) {
-    toast.error(e?.data?.error?.message || 'Import failed')
+    const apiMsg = e?.data?.error?.message
+    const details = e?.data?.error?.details
+    const detail = details && typeof details === 'object' ? Object.entries(details).map(([k, v]) => `${k}: ${v}`).join('; ') : ''
+    const fallback = e?.data?.message || e?.statusMessage || e?.message || 'Import failed'
+    toast.error(detail ? `${apiMsg || fallback} — ${detail}` : (apiMsg || fallback))
   } finally { importing.value = false }
 }
 

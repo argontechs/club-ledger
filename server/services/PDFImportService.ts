@@ -103,7 +103,14 @@ export const PDFImportService = {
   },
 
   async commit(actor: Actor & { id: number }, body: unknown) {
-    const v = CommitSchema.parse(body)
+    const parsed = CommitSchema.safeParse(body)
+    if (!parsed.success) {
+      const issues = parsed.error.issues
+      const first = issues[0]
+      const path = first?.path?.join('.') || 'body'
+      throw ApiError.validation({ [path]: first?.message || 'Invalid input' })
+    }
+    const v = parsed.data
 
     // Validate every ambassador exists and isn't owner-protected for the actor
     const uniqueIds = Array.from(new Set(v.rows.map(r => r.ambassadorId)))
