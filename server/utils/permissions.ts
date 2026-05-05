@@ -26,13 +26,13 @@ export async function assertNotOwnerProtected(actor: Actor, target: ProtectionTa
       if (target.targetRoleName === 'owner') throw ApiError.forbidden('owner-protected')
       return
     case 'ambassador':
-    case 'payout':
       if (await isOwnerProtectedAmbassador(target.ambassadorId)) throw ApiError.forbidden('owner-protected')
       return
     case 'sale':
-      // Recording sales (and the commission attached) for any ambassador, including the
-      // owner-linked one, is normal day-to-day activity and shouldn't require owner login.
-      // Genuinely sensitive surfaces (ambassador edits, payouts, role changes) are still locked above.
+    case 'payout':
+      // Recording sales and managing payouts for any ambassador, including the owner-linked
+      // one, is normal day-to-day activity and shouldn't require owner login. Genuinely
+      // sensitive surfaces (ambassador edits/deletes, owner-role changes) remain locked above.
       return
   }
 }

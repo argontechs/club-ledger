@@ -72,17 +72,17 @@ describe('assertNotOwnerProtected', () => {
     ).resolves.toBeUndefined()
   })
 
-  it('throws for admin actor on owner-linked sale', async () => {
+  it('allows admin actor on owner-linked sale (day-to-day data entry)', async () => {
     mockState.nextResult = [{ ambassadorId: 7 }]
     await expect(
       assertNotOwnerProtected({ id: 1, roleName: 'admin' }, { kind: 'sale', ambassadorId: 7 }),
-    ).rejects.toThrow()
+    ).resolves.toBeUndefined()
   })
 
-  it('throws for admin actor on owner-linked payout', async () => {
+  it('allows admin actor on owner-linked payout (day-to-day operations)', async () => {
     mockState.nextResult = [{ ambassadorId: 7 }]
     await expect(
       assertNotOwnerProtected({ id: 1, roleName: 'admin' }, { kind: 'payout', ambassadorId: 7 }),
-    ).rejects.toThrow()
+    ).resolves.toBeUndefined()
   })
 })

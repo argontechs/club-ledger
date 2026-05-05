@@ -46,5 +46,15 @@
     "happy-dom": "^20.9.0",
     "tsx": "^4.21.0",
     "vitest": "^4.1.5"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "puppeteer",
+      "bcryptjs",
+      "@parcel/watcher",
+      "esbuild",
+      "unrs-resolver",
+      "vue-demi"
+    ]
   }
 }
