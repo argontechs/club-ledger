@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { onMounted, ref } from 'vue'
 import { useAuthStore } from '~/stores/auth'
 definePageMeta({ layout: false })
 
@@ -9,6 +10,11 @@ const error = ref('')
 const loading = ref(false)
 const auth = useAuthStore()
 const router = useRouter()
+
+const branding = ref<{ logoUrl: string | null; venueName: string } | null>(null)
+onMounted(async () => {
+  try { branding.value = await $fetch('/api/v1/branding') } catch {}
+})
 
 async function submit() {
   error.value = ''
@@ -37,10 +43,11 @@ async function submit() {
       <div class="flex flex-col items-center gap-3">
         <div class="relative w-20 h-20 rounded-2xl bg-[var(--color-ink)] overflow-hidden flex items-center justify-center shrink-0 ring-1 ring-black/10 shadow-card">
           <img
-            src="~/assets/img/nono-logo.png"
-            alt="Nono Club"
+            v-if="branding?.logoUrl"
+            :src="branding.logoUrl"
+            alt="Logo"
             class="w-full h-full object-cover select-none pointer-events-none"
-          >
+          />
           <span class="absolute -right-1.5 -bottom-1.5 w-4 h-4 rounded-full bg-[var(--color-brand)] ring-3 ring-[var(--color-card)] shadow-rose" />
         </div>
         <div class="text-center">
@@ -72,7 +79,7 @@ async function submit() {
       </AppButton>
 
       <p class="text-center text-[10px] uppercase tracking-[0.2em] text-[var(--color-muted-2)] pt-1">
-        Nono Club · Sales &amp; commission
+        {{ branding?.venueName || 'Nono Club' }} · Sales &amp; commission
       </p>
     </form>
   </div>

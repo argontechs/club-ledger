@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, inject } from 'vue'
 import { useRoute } from 'vue-router'
 import { Bars3Icon } from '@heroicons/vue/24/outline'
 
 const route = useRoute()
 const drawer = useDrawer()
+const branding = inject<any>('branding', null)
 
 const titles: Record<string, { title: string; eyebrow?: string }> = {
   '/':             { title: 'Dashboard',    eyebrow: 'Overview' },
@@ -41,12 +42,13 @@ function openDrawer() { drawer.value = true }
       <div class="lg:hidden flex items-center gap-2 min-w-0">
         <div class="w-8 h-8 rounded-lg bg-[var(--color-ink)] overflow-hidden flex items-center justify-center shrink-0">
           <img
-            src="~/assets/img/nono-logo.png"
-            alt="Nono Club"
+            v-if="branding?.logoUrl"
+            :src="branding.logoUrl"
+            alt="Logo"
             class="w-full h-full object-cover select-none pointer-events-none"
-          >
+          />
         </div>
-        <span class="font-display font-bold text-[13px] tracking-tight text-[var(--color-ink)] truncate">Nono Club</span>
+        <span class="font-display font-bold text-[13px] tracking-tight text-[var(--color-ink)] truncate">{{ branding?.venueName ?? 'Nono Club' }}</span>
       </div>
 
       <div class="hidden lg:block min-w-0 leading-tight">

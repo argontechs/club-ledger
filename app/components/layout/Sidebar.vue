@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, inject } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowRightOnRectangleIcon } from '@heroicons/vue/24/outline'
 import { mainSidebarNav, mgmtSidebarNav, sidebarIconMap, type NavItem } from '~/config/sidebarNav'
 import { useAuthStore } from '~/stores/auth'
 
 const auth = useAuthStore()
+const branding = inject<{ logoUrl: string | null; venueName: string } | null>('branding', null)
 const route = useRoute()
 const router = useRouter()
 
@@ -36,14 +37,15 @@ function logout() {
     <div class="flex items-center gap-3 px-4 py-5">
       <div class="relative w-11 h-11 rounded-xl bg-[var(--color-ink)] overflow-hidden flex items-center justify-center shrink-0 shadow-card ring-1 ring-black/10">
         <img
-          src="~/assets/img/nono-logo.png"
-          alt="Nono Club"
+          v-if="branding?.logoUrl"
+          :src="branding.logoUrl"
+          alt="Logo"
           class="w-full h-full object-cover select-none pointer-events-none"
-        >
+        />
         <span class="absolute -right-1 -bottom-1 w-3 h-3 rounded-full bg-[var(--color-brand)] ring-2 ring-[var(--color-card)]" />
       </div>
       <div class="leading-tight">
-        <div class="font-display font-bold text-[15px] text-[var(--color-ink)] tracking-tight">Nono Club</div>
+        <div class="font-display font-bold text-[15px] text-[var(--color-ink)] tracking-tight">{{ branding?.venueName ?? 'Nono Club' }}</div>
         <div class="text-[10px] uppercase tracking-[0.2em] text-[var(--color-muted-2)]">Sales · Commission</div>
       </div>
     </div>
