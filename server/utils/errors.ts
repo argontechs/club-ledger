@@ -2,8 +2,10 @@ import { createError } from 'h3'
 
 export const ApiError = {
   validation(details: Record<string, string>) {
-    return createError({ statusCode: 422, statusMessage: 'Validation failed',
-      data: { error: { code: 'validation', message: 'Validation failed', details } } })
+    const fields = Object.keys(details).join(', ')
+    const summary = fields ? `Validation failed: ${fields}` : 'Validation failed'
+    return createError({ statusCode: 422, statusMessage: summary,
+      data: { error: { code: 'validation', message: summary, details } } })
   },
   notFound(resource: string) {
     return createError({ statusCode: 404, statusMessage: 'Not found',
