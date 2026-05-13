@@ -1,11 +1,21 @@
 import { eq, and, like, isNull } from 'drizzle-orm'
 import { useDB, schema } from '~~/server/db/client'
 
-export interface CommissionUser {
+export interface CommissionRoleConfig {
   id: number
   name: string
-  role: string
-  ambassadorId: number | null
+  tier: 'admin' | 'ambassador'
+  baseRate: number
+  bonusRate: number | null
+  requiresKpi: boolean
+  kpiThreshold: number | null
+}
+
+export interface CommissionEarner {
+  userId: number
+  name: string
+  roleId: number
+  ambassadorId: number
 }
 
 export interface CommissionSale {
@@ -21,43 +31,59 @@ export interface CommissionSale {
 
 export interface CommissionRow {
   userId: number
-  ambassadorId: number | null
+  ambassadorId: number
   name: string
-  role: string
+  roleId: number
+  roleName: string
+  tier: 'admin' | 'ambassador'
   ownSales: number
   ownCommission: number
   bonus: number
   total: number
 }
 
-const BONUS_ROLES = new Set(['owner', 'admin'])
-
 export function computeCommissions(input: {
   month: string
-  users: ReadonlyArray<CommissionUser>
+  roles: ReadonlyArray<CommissionRoleConfig>
+  earners: ReadonlyArray<CommissionEarner>
   sales: ReadonlyArray<CommissionSale>
 }): CommissionRow[] {
   const confirmed = input.sales.filter(s => s.status === 'confirmed')
+  const totalPool = confirmed.reduce((a, s) => a + Number(s.amount), 0)
+  const rolesById = new Map(input.roles.map(r => [r.id, r]))
 
-  const bonusPool = confirmed.reduce((acc, s) => {
-    const rate = Number(s.confirmedBonusRate ?? 0)
-    return acc + Number(s.amount) * rate / 100
-  }, 0)
+  return input.earners.map((e): CommissionRow => {
+    const role = rolesById.get(e.roleId)
+    if (!role) throw new Error(`Earner ${e.name} references unknown roleId ${e.roleId}`)
 
-  return input.users.map((u): CommissionRow => {
-    const own = u.ambassadorId
-      ? confirmed.filter(s => s.ambassadorId === u.ambassadorId)
-      : []
+    const own = confirmed.filter(s => s.ambassadorId === e.ambassadorId)
     const ownSales = own.reduce((a, s) => a + Number(s.amount), 0)
     const ownCommission = own.reduce(
       (a, s) => a + Number(s.amount) * Number(s.confirmedCommissionRate ?? 0) / 100,
       0,
     )
-    const bonus = BONUS_ROLES.has(u.role) ? bonusPool : 0
+
+    let bonus = 0
+    if (role.bonusRate !== null && role.bonusRate > 0) {
+      if (role.tier === 'admin') {
+        bonus = totalPool * role.bonusRate / 100
+      } else {
+        const kpiPassed = !role.requiresKpi || (role.kpiThreshold !== null && ownSales >= role.kpiThreshold)
+        if (kpiPassed) bonus = ownSales * role.bonusRate / 100
+      }
+    }
+
     return {
-      userId: u.id, ambassadorId: u.ambassadorId, name: u.name, role: u.role,
-      ownSales: round2(ownSales), ownCommission: round2(ownCommission),
-      bonus: round2(bonus), total: round2(ownCommission + bonus),
+      userId: e.userId,
+      ambassadorId: e.ambassadorId,
+      name: e.name,
+      roleId: e.roleId,
+      roleName: role.name,
+      tier: role.tier,
+      ownSales: round2(ownSales),
+      ownCommission: round2(ownCommission),
+      bonus: round2(bonus),
+      total: round2(ownCommission + bonus),
     }
   })
 }
@@ -66,45 +92,53 @@ function round2(n: number) { return Math.round(n * 100) / 100 }
 
 export async function loadCommissions(month: string): Promise<CommissionRow[]> {
   const db = useDB()
+  const roleRows = await db.select().from(schema.roles)
+
   const userRows = await db.select({
     id: schema.users.id, name: schema.users.name, ambassadorId: schema.users.ambassadorId,
-    role: schema.roles.name,
   })
     .from(schema.users)
-    .innerJoin(schema.roles, eq(schema.roles.id, schema.users.roleId))
     .where(isNull(schema.users.deletedAt))
 
   const ambassadorRows = await db.select({
     id: schema.ambassadors.id,
     name: schema.ambassadors.name,
+    roleId: schema.ambassadors.roleId,
   })
     .from(schema.ambassadors)
     .where(isNull(schema.ambassadors.deletedAt))
 
   const saleRows = await db.select().from(schema.sales).where(like(schema.sales.date, `${month}%`))
 
-  // Build a unified earner list: every active ambassador becomes an entry, with
-  // role/userId carried over from the linked user when one exists. Ambassadors
-  // without a login show up here too, which matches the data model — every
-  // confirmed sale earns its ambassador 8%, regardless of whether they sign in.
   const userByAmbassador = new Map<number, typeof userRows[number]>()
   for (const u of userRows) {
     if (u.ambassadorId != null) userByAmbassador.set(u.ambassadorId, u)
   }
 
-  const earners = ambassadorRows.map(a => {
+  const earners: CommissionEarner[] = ambassadorRows.map(a => {
     const u = userByAmbassador.get(a.id)
     return {
-      id: u?.id ?? -a.id,           // synthetic negative id when no user is linked
+      userId: u?.id ?? -a.id,
       name: a.name,
-      role: u?.role ?? 'ambassador',
+      roleId: a.roleId,
       ambassadorId: a.id,
     }
   })
 
+  const roleConfigs: CommissionRoleConfig[] = roleRows.map(r => ({
+    id: r.id,
+    name: r.name,
+    tier: r.tier,
+    baseRate: Number(r.baseRate),
+    bonusRate: r.bonusRate === null ? null : Number(r.bonusRate),
+    requiresKpi: r.requiresKpi === 1,
+    kpiThreshold: r.kpiThreshold === null ? null : Number(r.kpiThreshold),
+  }))
+
   return computeCommissions({
     month,
-    users: earners,
+    roles: roleConfigs,
+    earners,
     sales: saleRows.map(s => ({
       id: s.id, date: s.date, ambassadorId: s.ambassadorId, amount: s.amount,
       status: s.status, type: s.type,

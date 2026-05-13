@@ -1,6 +1,6 @@
-import { eq, like, isNull } from 'drizzle-orm'
+import { like, isNull } from 'drizzle-orm'
 import { useDB, schema } from '~~/server/db/client'
-import { computeCommissions } from '~~/server/services/CommissionService'
+import { computeCommissions, type CommissionRoleConfig, type CommissionEarner } from '~~/server/services/CommissionService'
 
 export default defineEventHandler(async () => {
   const db = useDB()
@@ -13,22 +13,48 @@ export default defineEventHandler(async () => {
     months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
   }
 
-  // Load all users once
+  // Load roles, users, and ambassadors once
+  const roleRows = await db.select().from(schema.roles)
+
   const userRows = await db.select({
     id: schema.users.id,
     name: schema.users.name,
     ambassadorId: schema.users.ambassadorId,
-    role: schema.roles.name,
   })
     .from(schema.users)
-    .innerJoin(schema.roles, eq(schema.roles.id, schema.users.roleId))
     .where(isNull(schema.users.deletedAt))
 
-  const users = userRows.map(u => ({
-    id: u.id,
-    name: u.name,
-    role: u.role,
-    ambassadorId: u.ambassadorId ?? null,
+  const ambassadorRows = await db.select({
+    id: schema.ambassadors.id,
+    name: schema.ambassadors.name,
+    roleId: schema.ambassadors.roleId,
+  })
+    .from(schema.ambassadors)
+    .where(isNull(schema.ambassadors.deletedAt))
+
+  const userByAmbassador = new Map<number, typeof userRows[number]>()
+  for (const u of userRows) {
+    if (u.ambassadorId != null) userByAmbassador.set(u.ambassadorId, u)
+  }
+
+  const earners: CommissionEarner[] = ambassadorRows.map(a => {
+    const u = userByAmbassador.get(a.id)
+    return {
+      userId: u?.id ?? -a.id,
+      name: a.name,
+      roleId: a.roleId,
+      ambassadorId: a.id,
+    }
+  })
+
+  const roles: CommissionRoleConfig[] = roleRows.map(r => ({
+    id: r.id,
+    name: r.name,
+    tier: r.tier,
+    baseRate: Number(r.baseRate),
+    bonusRate: r.bonusRate === null ? null : Number(r.bonusRate),
+    requiresKpi: r.requiresKpi === 1,
+    kpiThreshold: r.kpiThreshold === null ? null : Number(r.kpiThreshold),
   }))
 
   const result: Array<{ month: string; totalSales: number; totalCommission: number }> = []
@@ -47,7 +73,7 @@ export default defineEventHandler(async () => {
     const totalSales = sales
       .filter(s => s.status === 'confirmed')
       .reduce((a, s) => a + Number(s.amount), 0)
-    const rows = computeCommissions({ month, users, sales })
+    const rows = computeCommissions({ month, roles, earners, sales })
     const totalCommission = rows.reduce((a, r) => a + r.total, 0)
     result.push({ month, totalSales, totalCommission })
   }
