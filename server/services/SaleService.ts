@@ -1,7 +1,8 @@
 import { z } from 'zod'
+import { eq } from 'drizzle-orm'
+import { useDB, schema } from '~~/server/db/client'
 import { SaleRepo } from '~~/server/repositories/SaleRepository'
 import { AmbassadorRepo } from '~~/server/repositories/AmbassadorRepository'
-import { SettingsService } from '~~/server/services/SettingsService'
 import { ApiError } from '~~/server/utils/errors'
 import { assertNotOwnerProtected, type Actor } from '~~/server/utils/permissions'
 
@@ -26,8 +27,8 @@ export const SaleService = {
     return s
   },
 
-  async create(actor: Actor & { id: number; roleName: string }, body: unknown) {
-    if (actor.roleName !== 'owner' && actor.roleName !== 'admin') {
+  async create(actor: Actor & { id: number; roleName: string; tier?: string }, body: unknown) {
+    if ((actor as any).tier !== 'admin') {
       throw ApiError.forbidden('Insufficient role')
     }
     const v = CreateSchema.parse(body)
@@ -43,8 +44,8 @@ export const SaleService = {
     return await SaleRepo.findById((r as any)[0].insertId)
   },
 
-  async update(actor: Actor & { roleName: string }, id: number, body: unknown) {
-    if (actor.roleName !== 'owner' && actor.roleName !== 'admin') {
+  async update(actor: Actor & { roleName: string; tier?: string }, id: number, body: unknown) {
+    if ((actor as any).tier !== 'admin') {
       throw ApiError.forbidden('Insufficient role')
     }
     const s = await this.get(id)
@@ -62,8 +63,8 @@ export const SaleService = {
     return await this.get(id)
   },
 
-  async confirm(actor: Actor & { roleName: string }, id: number) {
-    if (actor.roleName !== 'owner' && actor.roleName !== 'admin') {
+  async confirm(actor: Actor & { roleName: string; tier?: string }, id: number) {
+    if ((actor as any).tier !== 'admin') {
       throw ApiError.forbidden('Insufficient role')
     }
     const s = await this.get(id)
@@ -71,18 +72,19 @@ export const SaleService = {
     await assertNotOwnerProtected(actor, { kind: 'sale', ambassadorId: s.ambassadorId })
     const amb = await AmbassadorRepo.findById(s.ambassadorId)
     if (!amb) throw ApiError.notFound('Ambassador')
-    const bonusRate = await SettingsService.get('bonus_rate')
+    const role = (await useDB().select().from(schema.roles).where(eq(schema.roles.id, amb.roleId)).limit(1))[0]
+    if (!role) throw ApiError.notFound('Role')
     await SaleRepo.update(id, {
       status: 'confirmed',
-      confirmedCommissionRate: amb.commissionRate,
-      confirmedBonusRate: bonusRate,
+      confirmedCommissionRate: role.baseRate,
+      confirmedBonusRate: role.bonusRate,
       confirmedAt: new Date(),
     } as any)
     return await this.get(id)
   },
 
-  async void(actor: Actor & { roleName: string }, id: number) {
-    if (actor.roleName !== 'owner' && actor.roleName !== 'admin') {
+  async void(actor: Actor & { roleName: string; tier?: string }, id: number) {
+    if ((actor as any).tier !== 'admin') {
       throw ApiError.forbidden('Insufficient role')
     }
     const s = await this.get(id)

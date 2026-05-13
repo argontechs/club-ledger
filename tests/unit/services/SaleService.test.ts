@@ -6,6 +6,8 @@ const sale = {
   confirmedCommissionRate: null, confirmedBonusRate: null,
 } as any
 
+const role = { id: 7, name: 'Ambassador', tier: 'ambassador', baseRate: '8.00', bonusRate: '1.00' }
+
 vi.mock('~~/server/repositories/SaleRepository', () => ({
   SaleRepo: {
     findById: vi.fn(async (id: number) => (id === 1 ? sale : undefined)),
@@ -14,10 +16,19 @@ vi.mock('~~/server/repositories/SaleRepository', () => ({
   },
 }))
 vi.mock('~~/server/repositories/AmbassadorRepository', () => ({
-  AmbassadorRepo: { findById: vi.fn(async () => ({ id: 5, commissionRate: '8.00', deletedAt: null })) },
+  AmbassadorRepo: { findById: vi.fn(async () => ({ id: 5, roleId: 7, deletedAt: null })) },
 }))
-vi.mock('~~/server/services/SettingsService', () => ({
-  SettingsService: { get: vi.fn(async (k: string) => (k === 'bonus_rate' ? '1.00' : '8.00')) },
+vi.mock('~~/server/db/client', () => ({
+  useDB: () => ({
+    select: () => ({
+      from: () => ({
+        where: () => ({
+          limit: async () => [role],
+        }),
+      }),
+    }),
+  }),
+  schema: { roles: { id: 'id' } },
 }))
 vi.mock('~~/server/utils/permissions', () => ({
   assertNotOwnerProtected: vi.fn(async () => undefined),
@@ -29,8 +40,8 @@ import { SaleRepo } from '~~/server/repositories/SaleRepository'
 describe('SaleService.confirm', () => {
   beforeEach(() => { sale.status = 'draft'; sale.confirmedCommissionRate = null; sale.confirmedBonusRate = null })
 
-  it('freezes commission and bonus rate on confirm', async () => {
-    await SaleService.confirm({ id: 9, roleName: 'admin' } as any, 1)
+  it('freezes commission and bonus rate from ambassador role on confirm', async () => {
+    await SaleService.confirm({ id: 9, roleName: 'admin', tier: 'admin' } as any, 1)
     expect(SaleRepo.update).toHaveBeenCalledWith(1, expect.objectContaining({
       status: 'confirmed',
       confirmedCommissionRate: '8.00',
@@ -40,6 +51,6 @@ describe('SaleService.confirm', () => {
 
   it('refuses to confirm an already-confirmed sale', async () => {
     sale.status = 'confirmed'
-    await expect(SaleService.confirm({ id: 9, roleName: 'admin' } as any, 1)).rejects.toThrow()
+    await expect(SaleService.confirm({ id: 9, roleName: 'admin', tier: 'admin' } as any, 1)).rejects.toThrow()
   })
 })
