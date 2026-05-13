@@ -1,10 +1,9 @@
 <script setup lang="ts">
 definePageMeta({ middleware: ['role'] })
 const { data: settings, refresh } = useAPI<Record<string, string>>('/settings')
+const { data: branding, refresh: refreshBranding } = useAPI<{ logoUrl: string | null; venueName: string }>('/branding')
 
 const form = ref({
-  default_commission_rate: '',
-  bonus_rate: '',
   currency_symbol: '',
   venue_name: '',
   company_name: '',
@@ -18,8 +17,6 @@ const saved = ref(false)
 
 watch(settings, (s) => {
   if (s) form.value = {
-    default_commission_rate: s.default_commission_rate ?? '',
-    bonus_rate: s.bonus_rate ?? '',
     currency_symbol: s.currency_symbol ?? '',
     venue_name: s.venue_name ?? '',
     company_name: s.company_name ?? '',
@@ -37,8 +34,6 @@ async function save() {
   saved.value = false
   try {
     await m.put('/settings', {
-      default_commission_rate: Number(form.value.default_commission_rate),
-      bonus_rate: Number(form.value.bonus_rate),
       currency_symbol: form.value.currency_symbol,
       venue_name: form.value.venue_name,
       company_name: form.value.company_name,
@@ -106,19 +101,16 @@ async function changePassword() {
         </div>
       </section>
 
-      <!-- Commission rates card -->
+      <!-- Branding card -->
       <section class="bg-[var(--color-card)] border border-[var(--color-border-2)] rounded-2xl p-6 shadow-card space-y-4">
         <header>
-          <p class="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-muted-2)]">Earnings</p>
-          <h3 class="font-display text-[17px] font-semibold text-[var(--color-ink)] tracking-tight mt-0.5">Commission rates</h3>
+          <p class="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-muted-2)]">Branding</p>
+          <h3 class="font-display text-[17px] font-semibold text-[var(--color-ink)] tracking-tight mt-0.5">Company logo</h3>
           <p class="text-[12px] text-[var(--color-muted)] mt-1">
-            Changes apply only to <span class="italic">future</span> sale confirmations. Already-confirmed sales keep their snapshotted rates.
+            Replaces the wordmark on the login page, the top-left header, and the favicon.
           </p>
         </header>
-        <div class="space-y-3">
-          <AppInput v-model="form.default_commission_rate" type="number" label="Default ambassador rate (%)" />
-          <AppInput v-model="form.bonus_rate" type="number" label="Owner / Admin bonus (%)" />
-        </div>
+        <LogoUploader :logo-url="branding?.logoUrl ?? null" @changed="refreshBranding" />
       </section>
 
       <!-- Security card -->
