@@ -4,7 +4,9 @@ definePageMeta({ middleware: ['role'] })
 
 const { data: rows, refresh } = useAPI<any[]>('/ambassadors')
 const { data: teams } = useAPI<any[]>('/teams')
-const { data: settings } = useAPI<Record<string, string>>('/settings')
+const { data: rolesList } = useAPI<any[]>('/roles')
+const ambassadorRoles = computed(() => (rolesList.value ?? []).filter(r => r.tier === 'ambassador'))
+const defaultRoleId = computed(() => ambassadorRoles.value.find(r => r.name === 'ambassador')?.id ?? ambassadorRoles.value[0]?.id ?? null)
 
 const auth = useAuthStore()
 const m = useAPIMutation()
@@ -22,14 +24,12 @@ const pagedRows = computed(() => {
   return list.slice(start, start + perPage.value)
 })
 
-const defaultRate = computed(() => Number(settings.value?.default_commission_rate ?? 8))
-
 type FormState = {
   name: string
   fullName: string
   ic: string
   teamId: number | null
-  commissionRate: number
+  roleId: number | null
   bankName: string
   bankAccountNumber: string
   bankOwnerName: string
@@ -40,7 +40,7 @@ const blankForm = (): FormState => ({
   fullName: '',
   ic: '',
   teamId: null,
-  commissionRate: defaultRate.value,
+  roleId: defaultRoleId.value,
   bankName: '',
   bankAccountNumber: '',
   bankOwnerName: '',
@@ -56,7 +56,7 @@ watch(editing, (v) => {
       fullName: v.fullName ?? '',
       ic: v.ic ?? '',
       teamId: v.teamId,
-      commissionRate: Number(v.commissionRate),
+      roleId: v.roleId ?? defaultRoleId.value,
       bankName: v.bankName ?? '',
       bankAccountNumber: v.bankAccountNumber ?? '',
       bankOwnerName: v.bankOwnerName ?? '',
@@ -66,23 +66,16 @@ watch(editing, (v) => {
 })
 
 async function save() {
-  if (!form.value.name.trim()) {
-    toast.error('Name is required')
-    return
-  }
+  if (!form.value.name.trim()) { toast.error('Name is required'); return }
+  if (!form.value.roleId) { toast.error('Role is required'); return }
   const teamRaw = form.value.teamId
-  const teamId = teamRaw === '' || teamRaw === null || teamRaw === undefined ? null : Number(teamRaw)
-  const rate = Number(form.value.commissionRate)
-  if (!Number.isFinite(rate)) {
-    toast.error('Commission rate must be a number')
-    return
-  }
+  const teamId = teamRaw === '' as any || teamRaw === null || teamRaw === undefined ? null : Number(teamRaw)
   const payload = {
     name: form.value.name.trim(),
     fullName: form.value.fullName.trim() || null,
     ic: form.value.ic.trim() || null,
     teamId,
-    commissionRate: rate,
+    roleId: Number(form.value.roleId),
     bankName: form.value.bankName.trim() || null,
     bankAccountNumber: form.value.bankAccountNumber.trim() || null,
     bankOwnerName: form.value.bankOwnerName.trim() || null,
@@ -119,14 +112,14 @@ async function remove(row: any) {
 }
 
 function isOwnerProtected(row: any) { return !!row.isProtected }
-const isAdmin = computed(() => auth.user?.role === 'admin')
+const isAdmin = computed(() => auth.user?.tier === 'admin' && auth.user?.role !== 'owner')
 </script>
 
 <template>
   <div class="space-y-6">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
       <p class="text-[13px] text-[var(--color-muted)]">
-        Manage ambassadors, their team, commission rate, and bank details.
+        Manage ambassadors, their team, role, and bank details.
       </p>
       <AppButton class="w-full sm:w-auto" @click="showAdd = true">+ New ambassador</AppButton>
     </div>
@@ -135,7 +128,7 @@ const isAdmin = computed(() => auth.user?.role === 'admin')
       <template #head>
         <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Name</th>
         <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Team</th>
-        <th class="px-4 py-3 text-right text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Rate</th>
+        <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Role</th>
         <th class="px-4 py-3" />
       </template>
       <template #row="{ row }">
@@ -148,7 +141,11 @@ const isAdmin = computed(() => auth.user?.role === 'admin')
         <td class="px-4 py-3 text-[13px] text-[var(--color-muted)]">
           {{ teams?.find(t => t.id === row.teamId)?.name ?? '—' }}
         </td>
-        <td class="px-4 py-3 text-[13px] text-right font-semibold text-[var(--color-ink)] tabular">{{ row.commissionRate }}%</td>
+        <td class="px-4 py-3 text-[13px]">
+          <AppBadge tone="slate" :dot="false" shape="square">
+            {{ rolesList?.find(r => r.id === row.roleId)?.name ?? '—' }}
+          </AppBadge>
+        </td>
         <td class="px-4 py-3 text-right">
           <div v-if="!(isAdmin && isOwnerProtected(row))" class="inline-flex gap-1.5">
             <AppButton size="sm" variant="secondary" @click="editing = row">Edit</AppButton>
@@ -195,7 +192,11 @@ const isAdmin = computed(() => auth.user?.role === 'admin')
               :options="[{ value: '', label: '— No team —' }, ...(teams ?? []).map(t => ({ value: t.id, label: t.name }))]"
               label="Team"
             />
-            <AppInput v-model="form.commissionRate" type="number" label="Commission rate (%)" />
+            <AppSelect
+              v-model="form.roleId"
+              :options="(rolesList ?? []).filter(r => r.tier === 'ambassador' || r.id === form.roleId).map(r => ({ value: r.id, label: r.name }))"
+              label="Role"
+            />
           </div>
         </section>
 
