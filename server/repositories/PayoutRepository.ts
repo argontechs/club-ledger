@@ -9,8 +9,28 @@ export const PayoutRepo = {
     if (filter.ambassadorId) where.push(eq(schema.payouts.ambassadorId, filter.ambassadorId))
     return db.select().from(schema.payouts).where(where.length ? and(...where) : undefined)
   },
-  insert(values: { ambassadorId: number; periodMonth: string; amount: string; notes?: string | null; createdBy: number; paidAt?: Date | null }) {
-    return useDB().insert(schema.payouts).values({ ...values, paidAt: values.paidAt ?? null })
+  insert(values: {
+    ambassadorId: number
+    periodMonth: string
+    amount: string
+    notes?: string | null
+    createdBy: number
+    paidAt?: Date | null
+    snapshotBonusRate?: string | null
+    snapshotKpiThreshold?: string | null
+    snapshotRequiresKpi?: number | null
+  }) {
+    return useDB().insert(schema.payouts).values({
+      ambassadorId: values.ambassadorId,
+      periodMonth: values.periodMonth,
+      amount: values.amount,
+      notes: values.notes ?? null,
+      createdBy: values.createdBy,
+      paidAt: values.paidAt ?? null,
+      snapshotBonusRate: values.snapshotBonusRate ?? null,
+      snapshotKpiThreshold: values.snapshotKpiThreshold ?? null,
+      snapshotRequiresKpi: values.snapshotRequiresKpi ?? null,
+    })
   },
   update(id: number, patch: Partial<{ amount: string; notes: string | null; paidAt: Date | null; receiptPaths: any; payslipPath: string | null }>) {
     return useDB().update(schema.payouts).set({ ...patch, updatedAt: new Date() }).where(eq(schema.payouts.id, id))

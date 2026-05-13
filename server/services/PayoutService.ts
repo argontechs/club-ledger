@@ -17,7 +17,7 @@ const CreateSchema = z.object({
 export const PayoutService = {
   list: PayoutRepo.list,
   async create(actor: Actor & { id: number; roleName: string }, body: unknown) {
-    if (actor.roleName !== 'owner' && actor.roleName !== 'admin') {
+    if ((actor as any).tier !== 'admin') {
       throw ApiError.forbidden('Insufficient role')
     }
     const v = CreateSchema.parse(body)
@@ -110,40 +110,53 @@ export const PayoutService = {
       })).min(1).max(100),
       markPaid: z.boolean().optional(),
     })
-    if ((actor as any).roleName !== 'owner' && (actor as any).roleName !== 'admin') {
+    if ((actor as any).tier !== 'admin') {
       throw ApiError.forbidden('Insufficient role')
     }
     const v = Schema.parse(body)
     const created: any[] = []
     for (const item of v.items) {
       await assertNotOwnerProtected(actor, { kind: 'payout', ambassadorId: item.ambassadorId })
-      // Skip if already exists for this ambassador+month
       const existing = await PayoutRepo.list({ ambassadorId: item.ambassadorId, month: item.periodMonth })
       if (existing.length > 0) continue
-      // Compute amount from commissions for that month for that ambassador
-      const sales = await useDB().select().from(schema.sales)
+
+      const amb = (await useDB().select().from(schema.ambassadors).where(eq(schema.ambassadors.id, item.ambassadorId)).limit(1))[0]
+      if (!amb) continue
+      const role = (await useDB().select().from(schema.roles).where(eq(schema.roles.id, amb.roleId)).limit(1))[0]
+      if (!role) continue
+
+      const ownSales = await useDB().select().from(schema.sales)
         .where(and(
           eq(schema.sales.ambassadorId, item.ambassadorId),
           eq(schema.sales.status, 'confirmed'),
           like(schema.sales.date, `${item.periodMonth}%`),
         ))
-      const commission = sales.reduce((a, s) => a + Number(s.amount) * Number(s.confirmedCommissionRate ?? 0) / 100, 0)
-      // Add bonus if linked user is owner/admin
+      const ownTotal = ownSales.reduce((a, s) => a + Number(s.amount), 0)
+      const commission = ownSales.reduce((a, s) => a + Number(s.amount) * Number(s.confirmedCommissionRate ?? 0) / 100, 0)
+
       let bonus = 0
-      const linkedUsers = await useDB().select({ role: schema.roles.name })
-        .from(schema.users).innerJoin(schema.roles, eq(schema.roles.id, schema.users.roleId))
-        .where(eq(schema.users.ambassadorId, item.ambassadorId))
-      const isBonusEligible = linkedUsers.some(u => u.role === 'owner' || u.role === 'admin')
-      if (isBonusEligible) {
-        const allMonth = await useDB().select().from(schema.sales)
-          .where(and(eq(schema.sales.status, 'confirmed'), like(schema.sales.date, `${item.periodMonth}%`)))
-        bonus = allMonth.reduce((a, s) => a + Number(s.amount) * Number(s.confirmedBonusRate ?? 0) / 100, 0)
+      const bonusRate = role.bonusRate === null ? null : Number(role.bonusRate)
+      if (bonusRate !== null && bonusRate > 0) {
+        if (role.tier === 'admin') {
+          const all = await useDB().select().from(schema.sales)
+            .where(and(eq(schema.sales.status, 'confirmed'), like(schema.sales.date, `${item.periodMonth}%`)))
+          const poolTotal = all.reduce((a, s) => a + Number(s.amount), 0)
+          bonus = poolTotal * bonusRate / 100
+        } else {
+          const kpiThresh = role.kpiThreshold === null ? null : Number(role.kpiThreshold)
+          const kpiPassed = role.requiresKpi !== 1 || (kpiThresh !== null && ownTotal >= kpiThresh)
+          if (kpiPassed) bonus = ownTotal * bonusRate / 100
+        }
       }
+
       const total = commission + bonus
       const r = await PayoutRepo.insert({
         ambassadorId: item.ambassadorId, periodMonth: item.periodMonth,
         amount: total.toFixed(2), notes: null, createdBy: actor.id,
         paidAt: v.markPaid ? new Date() : null,
+        snapshotBonusRate: role.bonusRate ?? null,
+        snapshotKpiThreshold: role.kpiThreshold ?? null,
+        snapshotRequiresKpi: role.requiresKpi,
       })
       const id = (r as any)[0].insertId
       const created_row = await PayoutRepo.findById(id)
