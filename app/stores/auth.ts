@@ -1,6 +1,13 @@
 import { defineStore } from 'pinia'
 
-interface User { id: number; email: string; name: string; role: 'owner'|'admin'|'leader'|'ambassador'; ambassadorId: number | null }
+interface User {
+  id: number
+  email: string
+  name: string
+  role: string                          // free-form name now
+  tier: 'admin' | 'ambassador'          // NEW
+  ambassadorId: number | null
+}
 interface State { token: string | null; user: User | null; remember: boolean }
 
 const KEY = 'nono_auth_v1'
@@ -43,7 +50,7 @@ export const useAuthStore = defineStore('auth', {
   },
   getters: {
     isAuthenticated: (s) => !!s.token && !!s.user,
-    isAdminOrOwner: (s) => s.user?.role === 'owner' || s.user?.role === 'admin',
+    isAdminOrOwner: (s) => s.user?.tier === 'admin',
   },
   actions: {
     setSession(token: string, user: User, remember = false) {

@@ -24,6 +24,7 @@ export default defineEventHandler(async (event) => {
     id: schema.users.id, email: schema.users.email, name: schema.users.name,
     roleId: schema.users.roleId, ambassadorId: schema.users.ambassadorId,
     roleName: schema.roles.name,
+    tier: schema.roles.tier,
   })
     .from(schema.users)
     .innerJoin(schema.roles, eq(schema.roles.id, schema.users.roleId))
