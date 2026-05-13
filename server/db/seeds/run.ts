@@ -16,18 +16,25 @@ async function main() {
   const db = drizzle(pool, { schema, mode: 'default' })
 
   // 1. Roles
-  const roleNames = ['owner', 'admin', 'leader', 'ambassador'] as const
-  for (const name of roleNames) {
-    const existing = await db.select().from(schema.roles).where(eq(schema.roles.name, name))
-    if (existing.length === 0) await db.insert(schema.roles).values({ name })
+  const roleSeeds = [
+    { name: 'owner',      tier: 'admin'      as const, baseRate: '8.00', bonusRate: '1.00', isSystem: 1 },
+    { name: 'admin',      tier: 'admin'      as const, baseRate: '8.00', bonusRate: '1.00', isSystem: 1 },
+    { name: 'leader',     tier: 'ambassador' as const, baseRate: '8.00', bonusRate: null,    isSystem: 0 },
+    { name: 'ambassador', tier: 'ambassador' as const, baseRate: '8.00', bonusRate: null,    isSystem: 0 },
+  ]
+  for (const r of roleSeeds) {
+    const existing = await db.select().from(schema.roles).where(eq(schema.roles.name, r.name))
+    if (existing.length === 0) {
+      await db.insert(schema.roles).values({
+        name: r.name, tier: r.tier, baseRate: r.baseRate, bonusRate: r.bonusRate, isSystem: r.isSystem,
+      })
+    }
   }
   const allRoles = await db.select().from(schema.roles)
   const roleId = (n: string) => allRoles.find(r => r.name === n)!.id
 
   // 2. Settings
   const settingsSeeds: Array<{ key: string; value: string }> = [
-    { key: 'default_commission_rate', value: '8.00' },
-    { key: 'bonus_rate', value: '1.00' },
     { key: 'currency', value: 'MYR' },
     { key: 'currency_symbol', value: 'RM' },
     { key: 'venue_name', value: 'Nono Club' },
@@ -40,18 +47,24 @@ async function main() {
   // 3. Protected ambassadors: Johnny + Unassigned Sales
   let johnny = (await db.select().from(schema.ambassadors).where(eq(schema.ambassadors.name, 'Johnny')))[0]
   if (!johnny) {
-    const r = await db.insert(schema.ambassadors).values({ name: 'Johnny', commissionRate: '8.00', isProtected: 1 })
+    const r = await db.insert(schema.ambassadors).values({
+      name: 'Johnny', roleId: roleId('owner'), isProtected: 1,
+    })
     johnny = (await db.select().from(schema.ambassadors).where(eq(schema.ambassadors.id, (r as any)[0].insertId)))[0]
   }
   let unassigned = (await db.select().from(schema.ambassadors).where(eq(schema.ambassadors.name, 'Unassigned Sales')))[0]
   if (!unassigned) {
-    await db.insert(schema.ambassadors).values({ name: 'Unassigned Sales', commissionRate: '0.00', isProtected: 1 })
+    await db.insert(schema.ambassadors).values({
+      name: 'Unassigned Sales', roleId: roleId('ambassador'), isProtected: 1,
+    })
   }
 
   // 4. Mok ambassador (non-protected)
   let mokAmb = (await db.select().from(schema.ambassadors).where(eq(schema.ambassadors.name, 'Mok')))[0]
   if (!mokAmb) {
-    const r = await db.insert(schema.ambassadors).values({ name: 'Mok', commissionRate: '8.00' })
+    const r = await db.insert(schema.ambassadors).values({
+      name: 'Mok', roleId: roleId('admin'),
+    })
     mokAmb = (await db.select().from(schema.ambassadors).where(eq(schema.ambassadors.id, (r as any)[0].insertId)))[0]
   }
 
