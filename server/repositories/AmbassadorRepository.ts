@@ -19,20 +19,22 @@ export const AmbassadorRepo = {
     fullName?: string | null
     ic?: string | null
     teamId?: number | null
-    commissionRate?: string
+    roleId: number
     bankName?: string | null
     bankAccountNumber?: string | null
     bankOwnerName?: string | null
+    isProtected?: number
   }) {
     return useDB().insert(schema.ambassadors).values({
       name: values.name,
       fullName: values.fullName ?? null,
       ic: values.ic ?? null,
       teamId: values.teamId ?? null,
-      commissionRate: values.commissionRate ?? '8.00',
+      roleId: values.roleId,
       bankName: values.bankName ?? null,
       bankAccountNumber: values.bankAccountNumber ?? null,
       bankOwnerName: values.bankOwnerName ?? null,
+      isProtected: values.isProtected ?? 0,
     })
   },
   update(id: number, patch: Partial<{
@@ -40,7 +42,7 @@ export const AmbassadorRepo = {
     fullName: string | null
     ic: string | null
     teamId: number | null
-    commissionRate: string
+    roleId: number
     bankName: string | null
     bankAccountNumber: string | null
     bankOwnerName: string | null
