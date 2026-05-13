@@ -3,7 +3,10 @@ import { useDB, schema } from '~~/server/db/client'
 import { verifyToken } from '~~/server/utils/jwt'
 import { ApiError } from '~~/server/utils/errors'
 
-const PUBLIC_PATHS = ['/api/v1/auth/login']
+const PUBLIC_PATHS = [
+  '/api/v1/auth/login',
+  '/api/v1/branding',
+]
 
 export default defineEventHandler(async (event) => {
   const url = event.node.req.url || ''
