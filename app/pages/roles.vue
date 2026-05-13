@@ -1,0 +1,77 @@
+<script setup lang="ts">
+definePageMeta({ middleware: ['role'] })
+const { data: roles, refresh } = useAPI<any[]>('/roles')
+const showAdd = ref(false)
+const editing = ref<any | null>(null)
+const m = useAPIMutation()
+const confirm = useConfirm()
+const toast = useToast()
+
+async function remove(row: any) {
+  if (!await confirm(`Delete role "${row.name}"?`, { tone: 'danger', confirmText: 'Delete' })) return
+  try {
+    await m.del(`/roles/${row.id}`)
+    await refresh()
+    toast.success('Role deleted')
+  } catch (e: any) {
+    toast.error(e?.data?.error?.message || 'Failed to delete role')
+  }
+}
+
+function fmtBonus(r: any) {
+  if (r.bonusRate === null) return '— no bonus'
+  return `+${Number(r.bonusRate).toFixed(2)}% bonus`
+}
+function fmtKpi(r: any) {
+  if (!r.requiresKpi || !r.kpiThreshold) return ''
+  return `KPI: hit RM ${Number(r.kpiThreshold).toLocaleString()}`
+}
+</script>
+
+<template>
+  <div class="space-y-6">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <p class="text-[13px] text-[var(--color-muted)]">
+        Configure base commission, bonus, and KPI thresholds for each role.
+      </p>
+      <AppButton @click="showAdd = true">+ New role</AppButton>
+    </div>
+
+    <AppTable :rows="roles ?? []" empty-text="No roles yet">
+      <template #head>
+        <th class="px-4 py-3 text-left text-[10px] uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Name</th>
+        <th class="px-4 py-3 text-left text-[10px] uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Tier</th>
+        <th class="px-4 py-3 text-right text-[10px] uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Base</th>
+        <th class="px-4 py-3 text-left text-[10px] uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Bonus / KPI</th>
+        <th class="px-4 py-3" />
+      </template>
+      <template #row="{ row }">
+        <td class="px-4 py-3 text-[13px] font-medium text-[var(--color-ink)]">
+          <span class="inline-flex items-center gap-2">
+            {{ row.name }}
+            <AppBadge v-if="row.isSystem" tone="slate" :dot="false" shape="square">System</AppBadge>
+          </span>
+        </td>
+        <td class="px-4 py-3 text-[13px] text-[var(--color-muted)] capitalize">{{ row.tier }}</td>
+        <td class="px-4 py-3 text-[13px] text-right font-semibold text-[var(--color-ink)] tabular">{{ Number(row.baseRate).toFixed(2) }}%</td>
+        <td class="px-4 py-3 text-[12px] text-[var(--color-muted)]">
+          <div>{{ fmtBonus(row) }}</div>
+          <div v-if="fmtKpi(row)" class="text-[var(--color-muted-2)]">{{ fmtKpi(row) }}</div>
+        </td>
+        <td class="px-4 py-3 text-right">
+          <div class="inline-flex gap-1.5">
+            <AppButton size="sm" variant="secondary" @click="editing = row; showAdd = true">Edit</AppButton>
+            <AppButton size="sm" variant="danger" :disabled="!!row.isSystem" @click="remove(row)">Delete</AppButton>
+          </div>
+        </td>
+      </template>
+    </AppTable>
+
+    <RoleEditorModal
+      :open="showAdd"
+      :role="editing"
+      @close="showAdd = false; editing = null"
+      @saved="refresh"
+    />
+  </div>
+</template>

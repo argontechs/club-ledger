@@ -10,7 +10,7 @@ const route = useRoute()
 const router = useRouter()
 
 const filterByRole = (items: NavItem[]) =>
-  items.filter(n => auth.user && n.roles.includes(auth.user.role))
+  items.filter(n => auth.user && n.tiers.includes(auth.user.tier as 'admin' | 'ambassador'))
 
 const mainItems = computed(() => filterByRole(mainSidebarNav))
 const mgmtItems = computed(() => filterByRole(mgmtSidebarNav))

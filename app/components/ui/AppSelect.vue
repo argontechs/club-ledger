@@ -2,7 +2,7 @@
 defineProps<{
   modelValue?: string | number | null
   label?: string
-  options: Array<{ value: string | number | null; label: string }>
+  options: Array<{ value: string | number | null; label: string; disabled?: boolean }>
   disabled?: boolean
 }>()
 defineEmits<{ (e: 'update:modelValue', v: string): void }>()
@@ -21,7 +21,7 @@ defineEmits<{ (e: 'update:modelValue', v: string): void }>()
         class="appearance-none w-full bg-white border border-[var(--color-border)] rounded-lg pl-3.5 pr-9 py-2.5 text-[13px] text-[var(--color-ink)] outline-none focus:border-[var(--color-brand)] focus:ring-4 focus:ring-[var(--color-brand)]/12 transition-[border-color,box-shadow] duration-150 disabled:bg-[var(--color-surface-2)] disabled:opacity-70"
         @change="$emit('update:modelValue', ($event.target as HTMLSelectElement).value)"
       >
-        <option v-for="o in options" :key="String(o.value)" :value="o.value ?? ''">{{ o.label }}</option>
+        <option v-for="o in options" :key="String(o.value)" :value="o.value ?? ''" :disabled="o.disabled">{{ o.label }}</option>
       </select>
       <svg
         aria-hidden="true"
