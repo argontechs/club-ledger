@@ -11,6 +11,7 @@ export default defineEventHandler(async (event) => {
     ext === 'svg' ? 'image/svg+xml' :
     ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : 'image/png'
   setResponseHeader(event, 'Content-Type', mime)
+  setResponseHeader(event, 'Content-Length', String(data.length))
   setResponseHeader(event, 'Cache-Control', 'public, max-age=60')
-  return data
+  return new Uint8Array(data)
 })
