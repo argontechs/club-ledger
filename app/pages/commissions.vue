@@ -77,8 +77,19 @@ const roleTone = (r: string) => {
         <th class="px-4 py-3 text-right text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Total</th>
       </template>
       <template #row="{ row }">
-        <td class="px-4 py-3 text-[13px] font-medium text-[var(--color-ink)]">{{ row.name }}</td>
-        <td class="px-4 py-3"><AppBadge :tone="roleTone(row.role)">{{ row.role }}</AppBadge></td>
+        <td class="px-4 py-3 text-[13px] text-[var(--color-ink)]">
+          <div class="font-medium">{{ row.name }}</div>
+          <div class="text-[11px] text-[var(--color-muted-2)] mt-0.5">
+            <span class="capitalize">{{ row.roleName }}</span>
+            <span v-if="row.bonus > 0">
+              · base {{ Number(row.ownCommission).toLocaleString() }} + bonus {{ Number(row.bonus).toLocaleString() }}
+            </span>
+            <span v-else>
+              · base only
+            </span>
+          </div>
+        </td>
+        <td class="px-4 py-3"><AppBadge :tone="roleTone(row.roleName)">{{ row.roleName }}</AppBadge></td>
         <td class="px-4 py-3 text-[13px] text-right text-[var(--color-muted)] tabular">{{ formatRM(row.ownSales) }}</td>
         <td class="px-4 py-3 text-[13px] text-right text-[var(--color-muted)] tabular">{{ formatRM(row.ownCommission) }}</td>
         <td class="px-4 py-3 text-[13px] text-right text-[var(--color-muted)] tabular">{{ formatRM(row.bonus) }}</td>
