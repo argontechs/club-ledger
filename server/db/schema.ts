@@ -12,7 +12,13 @@ const softDelete = () => ({ deletedAt: datetime('deleted_at', { mode: 'date' }) 
 
 export const roles = mysqlTable('roles', {
   id: int('id').autoincrement().primaryKey(),
-  name: varchar('name', { length: 20 }).notNull().unique(),
+  name: varchar('name', { length: 40 }).notNull().unique(),
+  tier: mysqlEnum('tier', ['admin', 'ambassador']).default('ambassador').notNull(),
+  baseRate: decimal('base_rate', { precision: 5, scale: 2 }).default('0.00').notNull(),
+  bonusRate: decimal('bonus_rate', { precision: 5, scale: 2 }),
+  kpiThreshold: decimal('kpi_threshold', { precision: 12, scale: 2 }),
+  requiresKpi: tinyint('requires_kpi').default(0).notNull(),
+  isSystem: tinyint('is_system').default(0).notNull(),
   ...ts(),
 })
 
@@ -29,7 +35,7 @@ export const ambassadors = mysqlTable('ambassadors', {
   fullName: varchar('full_name', { length: 200 }),
   ic: varchar('ic', { length: 60 }),
   teamId: int('team_id'),
-  commissionRate: decimal('commission_rate', { precision: 5, scale: 2 }).default('8.00').notNull(),
+  roleId: int('role_id').notNull(),
   isProtected: tinyint('is_protected').default(0).notNull(),
   bankName: varchar('bank_name', { length: 120 }),
   bankAccountNumber: varchar('bank_account_number', { length: 60 }),
@@ -76,6 +82,9 @@ export const payouts = mysqlTable('payouts', {
   ambassadorId: int('ambassador_id').notNull(),
   periodMonth: char('period_month', { length: 7 }).notNull(),
   amount: decimal('amount', { precision: 12, scale: 2 }).notNull(),
+  snapshotBonusRate: decimal('snapshot_bonus_rate', { precision: 5, scale: 2 }),
+  snapshotKpiThreshold: decimal('snapshot_kpi_threshold', { precision: 12, scale: 2 }),
+  snapshotRequiresKpi: tinyint('snapshot_requires_kpi'),
   notes: text('notes'),
   receiptPaths: json('receipt_paths').$type<Array<{ path: string; name: string; size: number; mime: string }>>(),
   payslipPath: varchar('payslip_path', { length: 500 }),
