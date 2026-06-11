@@ -17,6 +17,10 @@ vi.mock('~~/server/repositories/ClubRepository', () => ({
 vi.mock('~~/server/repositories/RoleRepository', () => ({
   RoleRepo: { insert: vi.fn(async (v: any) => { insertedRoles.push(v); return [{ insertId: insertedRoles.length }] }) },
 }))
+const insertedSaleTypes: any[] = []
+vi.mock('~~/server/repositories/SaleTypeRepository', () => ({
+  SaleTypeRepo: { insert: vi.fn(async (v: any) => { insertedSaleTypes.push(v); return [{ insertId: insertedSaleTypes.length }] }) },
+}))
 
 import { ClubService } from '~~/server/services/ClubService'
 
@@ -28,6 +32,7 @@ beforeEach(() => {
   clubs.push({ id: 1, name: 'Nono Club', logoPath: null, deletedAt: null })
   counts.teams = 0; counts.ambassadors = 0; counts.sales = 0; counts.payouts = 0
   insertedRoles.length = 0
+  insertedSaleTypes.length = 0
 })
 
 describe('ClubService', () => {
@@ -36,12 +41,13 @@ describe('ClubService', () => {
     expect(r).toHaveLength(1)
   })
 
-  it('create requires admin tier and seeds default commission roles', async () => {
+  it('create requires admin tier and seeds default commission roles and sale types', async () => {
     await expect(ClubService.create(nonAdmin, { name: 'Neon' })).rejects.toMatchObject({ statusCode: 403 })
     const club = await ClubService.create(admin, { name: 'Neon' })
     expect(club?.name).toBe('Neon')
     expect(insertedRoles.map(r => r.name).sort()).toEqual(['Ambassador', 'Leader'])
     expect(insertedRoles.every(r => r.clubId === 2)).toBe(true)
+    expect(insertedSaleTypes.map(t => t.name)).toEqual(['Table', 'BGO'])
   })
 
   it('update and remove require admin tier', async () => {

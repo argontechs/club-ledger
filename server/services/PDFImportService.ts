@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { SaleRepo } from '~~/server/repositories/SaleRepository'
 import { AmbassadorRepo } from '~~/server/repositories/AmbassadorRepository'
 import { RoleRepo } from '~~/server/repositories/RoleRepository'
+import { SaleTypeRepo } from '~~/server/repositories/SaleTypeRepository'
 import { ApiError } from '~~/server/utils/errors'
 import { assertNotOwnerProtected, type Actor } from '~~/server/utils/permissions'
 
@@ -78,6 +79,7 @@ export async function parsePdfBuffer(buf: Buffer): Promise<ParseResult> {
 
 const CommitSchema = z.object({
   status: z.enum(['draft', 'confirmed']).default('draft'),
+  saleType: z.string().trim().min(1).max(40).optional(),
   rows: z.array(z.object({
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     externalOrderId: z.string().regex(/^(T\d{15}|M-\d{6}-[A-Za-z0-9]+-\d+)$/),
@@ -139,6 +141,15 @@ export const PDFImportService = {
       rolesById.set(amb.roleId, role)
     }
 
+    // Imported rows take the requested sale type, defaulting to the club's
+    // first active type (the POS statement doesn't carry category info).
+    const clubTypes = (await SaleTypeRepo.listByClub(clubId)).filter(t => t.isActive === 1)
+    if (clubTypes.length === 0) throw ApiError.validation({ saleType: 'This club has no active sale types' })
+    const saleType = v.saleType ?? clubTypes[0]!.name
+    if (!clubTypes.some(t => t.name === saleType)) {
+      throw ApiError.validation({ saleType: 'Unknown sale type for this club' })
+    }
+
     const existing = await SaleRepo.findByExternalOrderIds(clubId, v.rows.map(r => r.externalOrderId))
     const existingSet = new Set(existing.map(e => e.externalOrderId))
     const toInsert = v.rows.filter(r => !existingSet.has(r.externalOrderId))
@@ -152,7 +163,7 @@ export const PDFImportService = {
         date: r.date,
         ambassadorId: r.ambassadorId,
         clubId,
-        type: 'Table' as const,
+        type: saleType,
         amount: r.amount.toFixed(2),
         notes: null,
         tableNumber: r.tableNumber,

@@ -3,13 +3,14 @@ import { eq } from 'drizzle-orm'
 import { useDB, schema } from '~~/server/db/client'
 import { SaleRepo } from '~~/server/repositories/SaleRepository'
 import { AmbassadorRepo } from '~~/server/repositories/AmbassadorRepository'
+import { SaleTypeService } from '~~/server/services/SaleTypeService'
 import { ApiError } from '~~/server/utils/errors'
 import { assertNotOwnerProtected, type Actor } from '~~/server/utils/permissions'
 
 const CreateSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   ambassadorId: z.number().int().positive(),
-  type: z.enum(['Table', 'BGO']),
+  type: z.string().trim().min(1).max(40),
   amount: z.number().nonnegative(),
   notes: z.string().nullish(),
   tableNumber: z.string().min(1, 'Table number is required'),
@@ -37,6 +38,8 @@ export const SaleService = {
     const amb = await AmbassadorRepo.findById(v.ambassadorId)
     if (!amb || amb.deletedAt) throw ApiError.validation({ ambassadorId: 'Unknown ambassador' })
     if (amb.clubId !== clubId) throw ApiError.validation({ ambassadorId: 'Ambassador belongs to a different club' })
+    const types = await SaleTypeService.activeNames(clubId)
+    if (!types.has(v.type)) throw ApiError.validation({ type: 'Unknown sale type for this club' })
     await assertNotOwnerProtected(actor, { kind: 'sale', ambassadorId: v.ambassadorId })
     const r = await SaleRepo.insert({
       date: v.date, ambassadorId: v.ambassadorId, clubId, type: v.type,
@@ -55,6 +58,10 @@ export const SaleService = {
     if (s.status !== 'draft') throw ApiError.conflict('Only draft sales can be edited')
     await assertNotOwnerProtected(actor, { kind: 'sale', ambassadorId: s.ambassadorId })
     const v = UpdateSchema.parse(body)
+    if (v.type !== undefined) {
+      const types = await SaleTypeService.activeNames(clubId)
+      if (!types.has(v.type)) throw ApiError.validation({ type: 'Unknown sale type for this club' })
+    }
     const patch: Record<string, unknown> = {}
     if (v.date) patch.date = v.date
     if (v.ambassadorId) {

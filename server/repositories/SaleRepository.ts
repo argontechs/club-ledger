@@ -3,7 +3,7 @@ import { useDB, schema } from '~~/server/db/client'
 import type { NewSale } from '~~/server/db/schema'
 
 export const SaleRepo = {
-  list(filter: { clubId?: number; month?: string; ambassadorId?: number; type?: 'Table' | 'BGO'; status?: 'draft' | 'confirmed' | 'voided' } = {}) {
+  list(filter: { clubId?: number; month?: string; ambassadorId?: number; type?: string; status?: 'draft' | 'confirmed' | 'voided' } = {}) {
     const db = useDB()
     const where = []
     if (filter.clubId) where.push(eq(schema.sales.clubId, filter.clubId))

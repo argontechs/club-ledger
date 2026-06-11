@@ -7,14 +7,14 @@ export default defineEventHandler(async (event) => {
   const q = getQuery(event)
   const month = String(q.month || '')
   if (!/^\d{4}-\d{2}$/.test(month)) throw ApiError.validation({ month: 'expected YYYY-MM' })
-  const type = q.type as 'Table' | 'BGO' | 'all' | undefined
+  const type = q.type as string | undefined
   const clubId = await requireClubId(event)
 
   const db = useDB()
   const where = [
     eq(schema.sales.status, 'confirmed'),
     like(schema.sales.date, `${month}%`),
-    ...(type && type !== 'all' ? [eq(schema.sales.type, type)] : []),
+    ...(type && type !== 'all' ? [eq(schema.sales.type, String(type))] : []),
   ]
   const rows = await db.select({
     ambassadorId: schema.ambassadors.id,

@@ -79,12 +79,26 @@ export const users = mysqlTable('users', {
   ...softDelete(),
 })
 
+// Per-club sale categories (pick-list). Sales snapshot the type NAME as a
+// string so renaming a type never rewrites historical rows.
+export const saleTypes = mysqlTable('sale_types', {
+  id: int('id').autoincrement().primaryKey(),
+  clubId: int('club_id').notNull(),
+  name: varchar('name', { length: 40 }).notNull(),
+  sortOrder: int('sort_order').default(0).notNull(),
+  isActive: tinyint('is_active').default(1).notNull(),
+  ...ts(),
+}, (t) => ({
+  clubName: unique('sale_types_club_name_unique').on(t.clubId, t.name),
+  byClub: index('sale_types_by_club').on(t.clubId),
+}))
+
 export const sales = mysqlTable('sales', {
   id: int('id').autoincrement().primaryKey(),
   date: date('date', { mode: 'string' }).notNull(),
   ambassadorId: int('ambassador_id').notNull(),
   clubId: int('club_id').notNull(),
-  type: mysqlEnum('type', ['Table', 'BGO']).notNull(),
+  type: varchar('type', { length: 40 }).notNull(),
   amount: decimal('amount', { precision: 12, scale: 2 }).notNull(),
   notes: text('notes'),
   status: mysqlEnum('status', ['draft', 'confirmed', 'voided']).default('draft').notNull(),
@@ -130,6 +144,7 @@ export const settings = mysqlTable('settings', {
 })
 
 export type Club = typeof clubs.$inferSelect
+export type SaleType = typeof saleTypes.$inferSelect
 export type Role = typeof roles.$inferSelect
 export type Team = typeof teams.$inferSelect
 export type Ambassador = typeof ambassadors.$inferSelect

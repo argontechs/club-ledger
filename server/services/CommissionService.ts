@@ -24,7 +24,7 @@ export interface CommissionSale {
   ambassadorId: number
   amount: string
   status: 'draft' | 'confirmed' | 'voided'
-  type: 'Table' | 'BGO'
+  type: string
   confirmedCommissionRate: string | null
   confirmedBonusRate: string | null
 }

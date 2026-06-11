@@ -3,19 +3,19 @@ import { TrophyIcon } from '@heroicons/vue/24/outline'
 import { formatRM } from '~/utils/currency'
 
 const month = ref('')
-const type = ref<'all' | 'Table' | 'BGO'>('all')
+const type = ref<string>('all')
 const { data: monthList } = useAPI<string[]>('/leaderboard/months')
-const { data: rows } = useAPI<any[]>(() => month.value ? `/leaderboard?month=${month.value}&type=${type.value}` : '')
+const { data: saleTypes } = useAPI<Array<{ name: string; isActive: number }>>('/sale-types')
+const { data: rows } = useAPI<any[]>(() => month.value ? `/leaderboard?month=${month.value}&type=${encodeURIComponent(type.value)}` : '')
 
 watch(monthList, (list) => {
   if (list && list.length && !month.value) month.value = list[0]
 }, { immediate: true })
 
-const typeOptions = [
+const typeOptions = computed(() => [
   { value: 'all', label: 'All' },
-  { value: 'Table', label: 'Table' },
-  { value: 'BGO', label: 'BGO' },
-] as const
+  ...((saleTypes.value ?? []).filter(t => t.isActive === 1).map(t => ({ value: t.name, label: t.name }))),
+])
 
 function initials(name: string | undefined | null) {
   if (!name) return '·'

@@ -3,7 +3,9 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import Chart from 'chart.js/auto'
 import { TrophyIcon, ArrowTrendingUpIcon, BanknotesIcon, CheckBadgeIcon } from '@heroicons/vue/24/outline'
 import { currentMonth } from '~/utils/dateFormat'
-import { formatRM } from '~/utils/currency'
+import { formatRM, currencySymbol } from '~/utils/currency'
+
+const branding = inject<{ logoUrl: string | null; venueName: string } | null>('branding', null)
 import { useAuthStore } from '~/stores/auth'
 
 const auth = useAuthStore()
@@ -100,7 +102,7 @@ function chartOpts(seriesLabel: string, months: string[]): any {
         caretSize: 6,
         callbacks: {
           title: (items: any[]) => fullMonthLabel(items[0]?.dataIndex ?? 0),
-          label: (ctx: any) => `${seriesLabel} · RM ${Number(ctx.parsed.y).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          label: (ctx: any) => `${seriesLabel} · ${currencySymbol()} ${Number(ctx.parsed.y).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
         },
       },
     },
@@ -117,7 +119,7 @@ function chartOpts(seriesLabel: string, months: string[]): any {
           color: '#9A9AA1',
           font: { family: 'Geist Mono', size: 10 },
           padding: 8,
-          callback: (v: any) => 'RM ' + (v >= 1000 ? (v / 1000).toFixed(1) + 'k' : v),
+          callback: (v: any) => `${currencySymbol()} ` + (v >= 1000 ? (v / 1000).toFixed(1) + 'k' : v),
         },
         beginAtZero: true,
       },
@@ -125,19 +127,26 @@ function chartOpts(seriesLabel: string, months: string[]): any {
   }
 }
 
-function brandGradient(ctx: CanvasRenderingContext2D, height: number) {
-  const g = ctx.createLinearGradient(0, 0, 0, height)
-  g.addColorStop(0, 'rgba(220, 26, 71, 0.28)')
-  g.addColorStop(1, 'rgba(220, 26, 71, 0)')
-  return g
+// Charts read the design tokens so a tenant re-theme carries through —
+// hex fallbacks only apply if the CSS variables are missing.
+function themeColor(varName: string, fallback: string): string {
+  if (typeof window === 'undefined') return fallback
+  const v = getComputedStyle(document.documentElement).getPropertyValue(varName).trim()
+  return v || fallback
 }
+const brandColor = () => themeColor('--color-brand', '#DC1A47')
+const inkColor = () => themeColor('--color-ink', '#0E0E10')
 
-function inkGradient(ctx: CanvasRenderingContext2D, height: number) {
+function alphaGradient(ctx: CanvasRenderingContext2D, height: number, hex: string, topAlpha: number) {
   const g = ctx.createLinearGradient(0, 0, 0, height)
-  g.addColorStop(0, 'rgba(14, 14, 16, 0.18)')
-  g.addColorStop(1, 'rgba(14, 14, 16, 0)')
+  const n = parseInt(hex.replace('#', ''), 16)
+  const rgb = `${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}`
+  g.addColorStop(0, `rgba(${rgb}, ${topAlpha})`)
+  g.addColorStop(1, `rgba(${rgb}, 0)`)
   return g
 }
+const brandGradient = (ctx: CanvasRenderingContext2D, h: number) => alphaGradient(ctx, h, brandColor(), 0.28)
+const inkGradient = (ctx: CanvasRenderingContext2D, h: number) => alphaGradient(ctx, h, inkColor(), 0.18)
 
 function renderCharts() {
   const points = chartData.value ?? []
@@ -158,14 +167,14 @@ function renderCharts() {
         datasets: [{
           label: 'Sales',
           data: salesData,
-          borderColor: '#DC1A47',
+          borderColor: brandColor(),
           backgroundColor: brandGradient(ctx, 180),
           borderWidth: 2,
           fill: true,
           tension: 0.38,
           pointRadius: 0,
           pointHoverRadius: 5,
-          pointBackgroundColor: '#DC1A47',
+          pointBackgroundColor: brandColor(),
           pointHoverBorderWidth: 2,
           pointHoverBorderColor: '#fff',
         }],
@@ -182,14 +191,14 @@ function renderCharts() {
         datasets: [{
           label: 'Commission',
           data: commData,
-          borderColor: '#0E0E10',
+          borderColor: inkColor(),
           backgroundColor: inkGradient(ctx, 180),
           borderWidth: 2,
           fill: true,
           tension: 0.38,
           pointRadius: 0,
           pointHoverRadius: 5,
-          pointBackgroundColor: '#0E0E10',
+          pointBackgroundColor: inkColor(),
           pointHoverBorderWidth: 2,
           pointHoverBorderColor: '#fff',
         }],
@@ -225,7 +234,7 @@ onBeforeUnmount(() => {
 
     <!-- KPI strip — inverted hero + three accents -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-      <AppCard tone="inverted" grain label="Total club sales" :prefix="'RM'" :value="formatRM(totalSales).replace(/^RM\s*/, '')">
+      <AppCard tone="inverted" grain label="Total club sales" :prefix="currencySymbol()" :value="formatRM(totalSales).replace(currencySymbol() + ' ', '')">
         <template #icon>
           <span class="w-8 h-8 rounded-lg bg-white/8 flex items-center justify-center text-white/70">
             <ArrowTrendingUpIcon class="w-4 h-4" />
@@ -234,16 +243,16 @@ onBeforeUnmount(() => {
         <p class="mt-3 text-[11px] text-white/55 tabular">Across all confirmed entries · {{ monthLabel }}</p>
       </AppCard>
 
-      <AppCard label="Commissions paid" :prefix="'RM'" :value="formatRM(totalCommissions).replace(/^RM\s*/, '')">
+      <AppCard label="Commissions paid" :prefix="currencySymbol()" :value="formatRM(totalCommissions).replace(currencySymbol() + ' ', '')">
         <template #icon>
           <span class="w-8 h-8 rounded-lg bg-[var(--color-surface-2)] flex items-center justify-center text-[var(--color-muted)]">
             <BanknotesIcon class="w-4 h-4" />
           </span>
         </template>
-        <p class="mt-3 text-[11px] text-[var(--color-muted-2)] tabular">Pool · 8% of qualifying sales</p>
+        <p class="mt-3 text-[11px] text-[var(--color-muted-2)] tabular">Base + bonus across all earners</p>
       </AppCard>
 
-      <AppCard label="My commission" :prefix="'RM'" :value="formatRM(myCommission).replace(/^RM\s*/, '')">
+      <AppCard label="My commission" :prefix="currencySymbol()" :value="formatRM(myCommission).replace(currencySymbol() + ' ', '')">
         <template #icon>
           <span class="w-8 h-8 rounded-lg bg-[var(--color-brand-soft)] flex items-center justify-center text-[var(--color-brand-dark)]">
             <TrophyIcon class="w-4 h-4" />
@@ -343,7 +352,7 @@ onBeforeUnmount(() => {
 
     <!-- Print signature -->
     <p class="pt-2 text-center text-[10px] uppercase tracking-[0.32em] text-[var(--color-muted-2)]">
-      Nono Club <span class="mx-1.5 opacity-50">·</span> The House Ledger <span class="mx-1.5 opacity-50">·</span> {{ monthLabel || 'No period selected' }}
+      {{ branding?.venueName ?? 'The House Ledger' }} <span class="mx-1.5 opacity-50">·</span> {{ monthLabel || 'No period selected' }}
     </p>
   </div>
 </template>

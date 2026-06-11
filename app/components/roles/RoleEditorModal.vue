@@ -18,6 +18,7 @@ const emit = defineEmits<{ (e: 'close'): void; (e: 'saved'): void }>()
 
 const auth = useAuthStore()
 const isOwner = computed(() => !!(auth.user as any)?.isOwner)
+import { currencySymbol } from '~/utils/currency'
 const m = useAPIMutation()
 const toast = useToast()
 const saving = ref(false)
@@ -86,7 +87,7 @@ async function save() {
           <input v-model="form.requiresKpi" type="checkbox" class="w-4 h-4 rounded" />
           Requires KPI to earn bonus
         </label>
-        <AppInput v-if="form.requiresKpi" v-model="form.kpiThreshold" type="number" label="KPI threshold (MYR own monthly sales)" />
+        <AppInput v-if="form.requiresKpi" v-model="form.kpiThreshold" type="number" :label="`KPI threshold (${currencySymbol()} own monthly sales)`" />
       </div>
       <p class="text-[11px] text-[var(--color-muted-2)]">
         Changes affect future sale confirmations only. Bonus uses current settings until the month's batch payout is created.

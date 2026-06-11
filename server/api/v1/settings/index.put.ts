@@ -11,6 +11,8 @@ const Schema = z.object({
   company_registration: z.string().optional(),
   company_phone: z.string().optional(),
   company_email: z.string().optional(),
+  label_registration: z.string().optional(),
+  label_id_document: z.string().optional(),
 })
 
 export default defineEventHandler(async (event) => {

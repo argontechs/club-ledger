@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useAuthStore } from '~/stores/auth'
+import { currencySymbol } from '~/utils/currency'
 
 const props = defineProps<{
   ambassadors: Array<{ id: number; name: string }>
@@ -7,9 +8,17 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ (e: 'submit', payload: any): void }>()
 
+// Sale types are per-club data; default to the first active one.
+const { data: saleTypes } = useAPI<Array<{ id: number; name: string; isActive: number }>>('/sale-types')
+const typeOptions = computed(() =>
+  (saleTypes.value ?? []).filter(t => t.isActive === 1).map(t => ({ value: t.name, label: t.name })))
+
 const date = ref(new Date().toISOString().slice(0, 10))
 const ambassadorId = ref<number | null>(null)
-const type = ref<'Table' | 'BGO'>('Table')
+const type = ref<string>('')
+watch(typeOptions, (opts) => {
+  if (!type.value && opts.length) type.value = String(opts[0]!.value)
+}, { immediate: true })
 const amount = ref<number | string>('')
 const tableNumber = ref('')
 const notes = ref('')
@@ -69,10 +78,10 @@ function submit() {
     <AppSelect
       v-model="type"
       label="Type"
-      :options="[{ value: 'Table', label: 'Table' }, { value: 'BGO', label: 'BGO' }]"
+      :options="typeOptions"
     />
     <AppInput v-model="tableNumber" label="Table number" placeholder="e.g. T12" />
-    <AppInput v-model="amount" type="number" label="Amount (RM)" placeholder="0.00" />
+    <AppInput v-model="amount" type="number" :label="`Amount (${currencySymbol()})`" placeholder="0.00" />
     <AppInput v-model="notes" label="Notes (optional)" />
     <p v-if="formError" class="text-[12px] text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">{{ formError }}</p>
     <div class="pt-2 flex justify-end">

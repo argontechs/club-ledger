@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { ClubRepo } from '~~/server/repositories/ClubRepository'
 import { RoleRepo } from '~~/server/repositories/RoleRepository'
+import { SaleTypeRepo } from '~~/server/repositories/SaleTypeRepository'
 import { ApiError } from '~~/server/utils/errors'
 import type { Actor } from '~~/server/utils/permissions'
 
@@ -35,6 +36,8 @@ export const ClubService = {
         bonusRate: null, kpiThreshold: null, requiresKpi: 0, clubId,
       })
     }
+    await SaleTypeRepo.insert({ clubId, name: 'Table', sortOrder: 0 })
+    await SaleTypeRepo.insert({ clubId, name: 'BGO', sortOrder: 1 })
     return ClubRepo.findById(clubId)
   },
 

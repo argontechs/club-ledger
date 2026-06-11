@@ -15,6 +15,14 @@ vi.mock('~~/server/repositories/AmbassadorRepository', () => ({
 vi.mock('~~/server/repositories/RoleRepository', () => ({
   RoleRepo: { findById: vi.fn(async (id: number) => (id === 7 ? role : undefined)) },
 }))
+vi.mock('~~/server/repositories/SaleTypeRepository', () => ({
+  SaleTypeRepo: {
+    listByClub: vi.fn(async () => [
+      { id: 1, clubId: 1, name: 'Table', sortOrder: 0, isActive: 1 },
+      { id: 2, clubId: 1, name: 'BGO', sortOrder: 1, isActive: 1 },
+    ]),
+  },
+}))
 vi.mock('~~/server/utils/permissions', () => ({
   assertNotOwnerProtected: vi.fn(async () => undefined),
 }))

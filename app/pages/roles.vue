@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { currencySymbol } from '~/utils/currency'
 definePageMeta({ middleware: ['role'] })
 const { data: roles, refresh } = useAPI<any[]>('/roles')
 const showAdd = ref(false)
@@ -24,7 +25,7 @@ function fmtBonus(r: any) {
 }
 function fmtKpi(r: any) {
   if (!r.requiresKpi || !r.kpiThreshold) return ''
-  return `KPI: hit RM ${Number(r.kpiThreshold).toLocaleString()}`
+  return `KPI: hit ${currencySymbol()} ${Number(r.kpiThreshold).toLocaleString()}`
 }
 </script>
 

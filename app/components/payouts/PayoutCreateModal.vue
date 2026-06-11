@@ -48,9 +48,7 @@ async function save() {
   } finally { saving.value = false }
 }
 
-function fmtRM(n: number) {
-  return 'RM ' + n.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
+import { formatRM as fmtRM } from '~/utils/currency'
 </script>
 <template>
   <AppModal :open="open" size="lg" title="Create payouts" @close="emit('close')">

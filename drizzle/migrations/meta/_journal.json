@@ -43,6 +43,13 @@
       "when": 1781171397168,
       "tag": "0005_owner_flag",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1781171721897,
+      "tag": "0006_sale_types",
+      "breakpoints": true
     }
   ]
 }

@@ -7,6 +7,16 @@ function fmt(n: number) {
   return n.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
+// Company-configurable display strings (settings keys, with the original
+// Malaysian defaults).
+function labels(settings: Record<string, string>) {
+  return {
+    currency: settings.currency_symbol || 'RM',
+    registration: settings.label_registration || 'SSM',
+    idDocument: settings.label_id_document || 'IC / Passport',
+  }
+}
+
 function escapeHtml(s: string) {
   return s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!))
 }
@@ -68,10 +78,11 @@ function extraLabel(ctx: PayoutPdfContext) {
 }
 
 function header(settings: Record<string, string>) {
-  const company = escapeHtml(settings.company_name ?? settings.venue_name ?? 'Nono Club')
+  const company = escapeHtml(settings.company_name || 'Payout statement')
+  const l = labels(settings)
   const lines = [
     settings.company_address,
-    [settings.company_registration ? `SSM: ${settings.company_registration}` : '',
+    [settings.company_registration ? `${escapeHtml(l.registration)}: ${settings.company_registration}` : '',
      settings.company_phone ? `Tel: ${settings.company_phone}` : '',
      settings.company_email ? `Email: ${settings.company_email}` : ''].filter(Boolean).join(' · '),
   ].filter(Boolean).map(l => `<p style="margin:2px 0;font-size:11px;color:#666">${escapeHtml(l ?? '')}</p>`).join('')
@@ -111,7 +122,7 @@ export function buildSummaryHtml(ctx: PayoutPdfContext): string {
     <table>
       <thead><tr>
         <th>Date</th><th>Type</th><th>Table</th>
-        <th class="right">Amount (RM)</th><th class="right">Rate</th><th class="right">Commission</th>
+        <th class="right">Amount (${escapeHtml(labels(settings).currency)})</th><th class="right">Rate</th><th class="right">Commission</th>
       </tr></thead>
       <tbody>
         ${rows.map(r => `<tr>
@@ -136,7 +147,7 @@ export function buildSummaryHtml(ctx: PayoutPdfContext): string {
       </tbody></table>
     ` : ''}
     <h2>Total payout</h2>
-    <p style="font-size:18px;font-weight:bold;color:#BE123C">RM ${fmt(totals.total)}</p>
+    <p style="font-size:18px;font-weight:bold;color:#BE123C">${escapeHtml(labels(settings).currency)} ${fmt(totals.total)}</p>
   </body></html>`
 }
 
@@ -155,7 +166,7 @@ export function buildPayslipHtml(ctx: PayoutPdfContext): string {
     <h2 style="margin-top:0">Payslip</h2>
     <div class="meta-grid">
       <span class="label">Ambassador:</span><span>${escapeHtml(ambassador.fullName ?? ambassador.name)}</span>
-      <span class="label">IC / Passport:</span><span>${escapeHtml(ambassador.ic ?? '-')}</span>
+      <span class="label">${escapeHtml(labels(settings).idDocument)}:</span><span>${escapeHtml(ambassador.ic ?? '-')}</span>
       ${ctx.club ? `<span class="label">Club:</span><span>${escapeHtml(ctx.club.name)}</span>` : ''}
       <span class="label">Period:</span><span>${escapeHtml(payout.periodMonth)}</span>
       <span class="label">Issued:</span><span>${new Date().toLocaleDateString('en-GB')}</span>
@@ -163,7 +174,7 @@ export function buildPayslipHtml(ctx: PayoutPdfContext): string {
 
     <h2>Earnings</h2>
     <table>
-      <thead><tr><th>Item</th><th class="right">Amount (RM)</th></tr></thead>
+      <thead><tr><th>Item</th><th class="right">Amount (${escapeHtml(labels(settings).currency)})</th></tr></thead>
       <tbody>
         <tr><td>Sales commission</td><td class="right">${fmt(totals.commission)}</td></tr>
         ${totals.extra !== 0 ? `<tr><td>${extraLabel(ctx)}</td><td class="right">${fmt(totals.extra)}</td></tr>` : ''}
@@ -181,7 +192,7 @@ export function buildPayslipHtml(ctx: PayoutPdfContext): string {
     ` : ''}
 
     <p style="margin-top:40px;font-size:10px;color:#aaa;border-top:1px solid #E0E0E0;padding-top:12px">
-      This is a system-generated payslip. ${escapeHtml(settings.company_name ?? 'Nono Club')}.
+      This is a system-generated payslip.${settings.company_name ? ' ' + escapeHtml(settings.company_name) + '.' : ''}
     </p>
   </body></html>`
 }

@@ -17,10 +17,11 @@ const titles: Record<string, { title: string; eyebrow?: string }> = {
   '/ambassadors':  { title: 'Ambassadors',  eyebrow: 'People' },
   '/teams':        { title: 'Teams',        eyebrow: 'People' },
   '/access':       { title: 'Access & roles', eyebrow: 'Admin' },
+  '/roles':        { title: 'Roles',        eyebrow: 'Admin' },
   '/settings':     { title: 'Settings',     eyebrow: 'Admin' },
 }
 
-const meta = computed(() => titles[route.path] ?? { title: 'Nono Club' })
+const meta = computed(() => titles[route.path] ?? { title: branding?.venueName ?? 'Overview' })
 
 function openDrawer() { drawer.value = true }
 </script>

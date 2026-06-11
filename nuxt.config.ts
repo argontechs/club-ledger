@@ -28,19 +28,12 @@ export default defineNuxtConfig({
   },
   routeRules: {
     '/**': { appMiddleware: ['auth'] },
-    // Lets the ninedsales.com operator portal read a clean reachability
-    // signal when it pings this subdomain on page load. Merges with
-    // the '/**' rule above for the root path; auth is unaffected.
-    '/': {
-      headers: {
-        'Access-Control-Allow-Origin': 'https://ninedsales.com',
-        'Access-Control-Allow-Methods': 'HEAD, GET, OPTIONS',
-      },
-    },
   },
   app: {
     head: {
-      title: 'Nono Club',
+      // Runtime title follows the active club (set in app.vue); this is the
+      // pre-hydration fallback, overridable per deployment.
+      title: process.env.NUXT_PUBLIC_APP_NAME || 'Club Ledger',
       link: [
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
         { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
