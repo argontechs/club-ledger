@@ -6,6 +6,7 @@ import { ApiError } from '~~/server/utils/errors'
 const PUBLIC_PATHS = [
   '/api/v1/auth/login',
   '/api/v1/branding',
+  '/api/v1/setup',
 ]
 
 export default defineEventHandler(async (event) => {

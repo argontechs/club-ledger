@@ -13,6 +13,11 @@ const router = useRouter()
 
 const branding = ref<{ logoUrl: string | null; venueName: string } | null>(null)
 onMounted(async () => {
+  // Fresh install → walk through first-run setup instead of a dead login.
+  try {
+    const s = await $fetch<{ needsSetup: boolean }>('/api/v1/setup/status')
+    if (s.needsSetup) { router.replace('/setup'); return }
+  } catch {}
   try { branding.value = await $fetch('/api/v1/branding') } catch {}
 })
 

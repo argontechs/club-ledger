@@ -38,9 +38,13 @@ async function save() {
   }
   if (form.value.password) payload.password = form.value.password
   const wasEditing = !!editing.value
+  if (!wasEditing && form.value.password.length < 6) {
+    toast.error('Set a password (at least 6 characters) for the new user')
+    return
+  }
   try {
     if (editing.value) await m.put(`/users/${editing.value.id}`, payload)
-    else await m.post('/users', { ...payload, password: form.value.password || 'password' })
+    else await m.post('/users', payload)
     showAdd.value = false; editing.value = null
     await refresh()
     toast.success(wasEditing ? 'User updated' : 'User created')
