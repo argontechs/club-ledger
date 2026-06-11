@@ -1,9 +1,17 @@
-import { eq } from 'drizzle-orm'
+import { eq, isNull } from 'drizzle-orm'
 import { useDB, schema } from '~~/server/db/client'
 
 export const RoleRepo = {
   list() {
     return useDB().select().from(schema.roles)
+  },
+  // Commission roles of one club
+  listByClub(clubId: number) {
+    return useDB().select().from(schema.roles).where(eq(schema.roles.clubId, clubId))
+  },
+  // Company-level staff roles (what user logins reference)
+  listStaff() {
+    return useDB().select().from(schema.roles).where(isNull(schema.roles.clubId))
   },
   findById(id: number) {
     return useDB().select().from(schema.roles).where(eq(schema.roles.id, id)).limit(1).then(r => r[0])
@@ -19,6 +27,7 @@ export const RoleRepo = {
     kpiThreshold: string | null
     requiresKpi: number
     isSystem?: number
+    clubId?: number | null
   }) {
     return useDB().insert(schema.roles).values({
       name: values.name,
@@ -28,6 +37,7 @@ export const RoleRepo = {
       kpiThreshold: values.kpiThreshold,
       requiresKpi: values.requiresKpi,
       isSystem: values.isSystem ?? 0,
+      clubId: values.clubId ?? null,
     })
   },
   update(id: number, patch: Partial<{
