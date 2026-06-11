@@ -126,6 +126,9 @@ export const sales = mysqlTable('sales', {
   byAmbassador: index('sales_by_ambassador').on(t.ambassadorId),
   byOrderId: index('sales_by_order_id').on(t.externalOrderId),
   byClub: index('sales_by_club').on(t.clubId, t.date),
+  // Hard dedupe backstop for imports: a receipt can exist once per club.
+  // NULL external ids (manual sales) are exempt by MySQL unique semantics.
+  clubOrderUnique: unique('sales_club_order_unique').on(t.clubId, t.externalOrderId),
 }))
 
 export const payouts = mysqlTable('payouts', {

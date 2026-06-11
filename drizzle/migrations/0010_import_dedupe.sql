@@ -1,0 +1,1 @@
+ALTER TABLE `sales` ADD CONSTRAINT `sales_club_order_unique` UNIQUE(`club_id`,`external_order_id`);

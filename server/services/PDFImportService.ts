@@ -1,4 +1,5 @@
 import { extractText, getDocumentProxy } from 'unpdf'
+import { detectParser, importParsers } from '~~/server/import/parsers'
 import { z } from 'zod'
 import { SaleRepo } from '~~/server/repositories/SaleRepository'
 import { AmbassadorRepo } from '~~/server/repositories/AmbassadorRepository'
@@ -13,69 +14,40 @@ export interface ParsedRow {
   externalOrderId: string
   tableNumber: string
   amount: number
+  reportedRate?: number
 }
 
 export interface ParseResult {
   ambassadorHint: string | null
   headerTotal: number
+  reportedCommissionTotal: number | null
   rows: ParsedRow[]
   errors: string[]
-}
-
-const ROW_RE = /(\d{4}-\d{2}-\d{2})\s+(T\d{15})\s+\S+\s+\S+\s+\S+\s+\S+\s+(\S+)\s+(.+?)\s+\S+\s+RM\s+([\d,.\-]+)\s+RM\s*([\d,.\-]+)/g
-// Rows where the POS export omits the order ID (column shows "-") but still has a real amount.
-const ORPHAN_ROW_RE = /(\d{4}-\d{2}-\d{2})\s+-\s+(\S+)\s+(.+?)\s+\S+\s+RM\s+([\d,.\-]+)\s+RM\s*([\d,.\-]+)/g
-const HEADER_TOTAL_RE = /总计\s+RM\s*([\d,.]+)\s+RM\s*([\d,.]+)/
-const HINT_RE = /AGENT COMMISSION ON\s+(.+?)\s+(?:营业|总计|\d{4}-\d{2}-\d{2})/i
-
-function toNumber(rmCell: string): number | null {
-  const cleaned = rmCell.replace(/,/g, '').trim()
-  if (cleaned === '-' || cleaned === '') return null
-  const n = Number(cleaned)
-  return Number.isFinite(n) ? n : null
-}
-
-function syntheticOrderId(date: string, tableNumber: string, amount: number): string {
-  const ymd = date.replace(/-/g, '').slice(2) // YYMMDD
-  const cents = Math.round(amount * 100)
-  const safeTable = tableNumber.replace(/[^A-Za-z0-9]/g, '')
-  return `M-${ymd}-${safeTable}-${cents}`
+  /** Which registered statement format matched, and its sale type. */
+  format: string
+  formatId: string
+  suggestedSaleType: string
 }
 
 export async function parsePdfBuffer(buf: Buffer): Promise<ParseResult> {
   const pdf = await getDocumentProxy(new Uint8Array(buf))
   const { text: pages } = await extractText(pdf, { mergePages: true })
-  const text = Array.isArray(pages) ? pages.join('\n') : pages
-  const errors: string[] = []
+  const rawText = Array.isArray(pages) ? pages.join('\n') : pages
+  const normalized = rawText.replace(/\s+/g, ' ')
 
-  const headerMatch = text.match(HEADER_TOTAL_RE)
-  const headerTotal = headerMatch ? Number(headerMatch[1].replace(/,/g, '')) : 0
-
-  const hintMatch = text.match(HINT_RE)
-  const ambassadorHint = hintMatch ? hintMatch[1].trim() : null
-
-  const rows: ParsedRow[] = []
-  const normalized = text.replace(/\s+/g, ' ')
-  let m: RegExpExecArray | null
-  ROW_RE.lastIndex = 0
-  while ((m = ROW_RE.exec(normalized))) {
-    const date = m[1]!, orderId = m[2]!, tableNumber = m[3]!, amountCell = m[5]!
-    const amount = toNumber(amountCell)
-    if (amount === null) continue
-    rows.push({ date, externalOrderId: orderId, tableNumber, amount })
+  const detected = detectParser(rawText)
+  if (!detected) {
+    throw ApiError.validation({
+      file: `Unrecognised statement format. Supported: ${importParsers.map(p => p.label).join('; ')}`,
+    })
   }
-
-  ORPHAN_ROW_RE.lastIndex = 0
-  while ((m = ORPHAN_ROW_RE.exec(normalized))) {
-    const date = m[1]!, tableNumber = m[2]!, amountCell = m[4]!
-    const amount = toNumber(amountCell)
-    if (amount === null) continue
-    rows.push({ date, externalOrderId: syntheticOrderId(date, tableNumber, amount), tableNumber, amount })
+  const r = detected.parser.parse(normalized, rawText)
+  return {
+    ...r,
+    format: detected.parser.label,
+    formatId: detected.parser.id,
+    suggestedSaleType: detected.parser.defaultSaleType,
   }
-
-  rows.sort((a, b) => a.date.localeCompare(b.date) || a.externalOrderId.localeCompare(b.externalOrderId))
-
-  return { ambassadorHint, headerTotal, rows, errors }
 }
 
 const CommitSchema = z.object({
@@ -83,7 +55,7 @@ const CommitSchema = z.object({
   saleType: z.string().trim().min(1).max(40).optional(),
   rows: z.array(z.object({
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-    externalOrderId: z.string().regex(/^(T\d{15}|M-\d{6}-[A-Za-z0-9]+-\d+)$/),
+    externalOrderId: z.string().regex(/^(T\d{15}|A\d{15,20}|M-\d{6}-[A-Za-z0-9]+-\d+)$/),
     tableNumber: z.string(),
     amount: z.number().positive(),
     ambassadorId: z.number().int().positive(),
@@ -96,9 +68,15 @@ export const PDFImportService = {
     const orderIds = r.rows.map(x => x.externalOrderId)
     const dups = await SaleRepo.findByExternalOrderIds(clubId, orderIds)
     const dupSet = new Set(dups.map(d => d.externalOrderId))
+    const reportedRates = Array.from(new Set(r.rows.map(x => x.reportedRate).filter((x): x is number => x !== undefined)))
     return {
+      format: r.format,
+      formatId: r.formatId,
+      suggestedSaleType: r.suggestedSaleType,
       ambassadorHint: r.ambassadorHint,
       headerTotal: r.headerTotal,
+      reportedCommissionTotal: r.reportedCommissionTotal,
+      reportedRates,
       parsedTotal: r.rows.reduce((a, x) => a + x.amount, 0),
       duplicates: Array.from(dupSet),
       rows: r.rows,
@@ -175,7 +153,16 @@ export const PDFImportService = {
       }
     })
 
-    await SaleRepo.insertMany(records as any)
+    try {
+      await SaleRepo.insertMany(records as any)
+    } catch (e: any) {
+      // The (club_id, external_order_id) unique index is the backstop against
+      // two imports racing past the pre-filter — surface it cleanly.
+      if (e?.code === 'ER_DUP_ENTRY' || /Duplicate entry/.test(String(e?.message))) {
+        throw ApiError.conflict('Some rows were imported by a concurrent request — run the import again to skip them')
+      }
+      throw e
+    }
     return { imported: toInsert.length, skipped: v.rows.length - toInsert.length }
   },
 }

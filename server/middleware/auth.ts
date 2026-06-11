@@ -18,7 +18,7 @@ export default defineEventHandler(async (event) => {
   const url = event.node.req.url || ''
   if (!url.startsWith('/api/v1')) return
   if (PUBLIC_PREFIXES.some(p => url.startsWith(p))) return
-  const path = url.split('?')[0]
+  const path = url.split('?')[0] ?? url
   if (PUBLIC_EXACT.includes(path)) return
 
   const auth = getHeader(event, 'authorization') || ''
@@ -27,7 +27,7 @@ export default defineEventHandler(async (event) => {
 
   const { jwtSecret } = useRuntimeConfig()
   let payload
-  try { payload = verifyToken(match[1], jwtSecret) }
+  try { payload = verifyToken(match[1]!, jwtSecret) }
   catch { throw ApiError.unauthorized('Invalid token') }
 
   const db = useDB()

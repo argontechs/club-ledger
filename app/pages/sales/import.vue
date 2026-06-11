@@ -100,6 +100,7 @@ async function commit() {
   try {
     result.value = await m.post('/sales/import-commit', {
       status: status.value,
+      saleType: dryRun.value.suggestedSaleType ?? undefined,
       rows: importableRows.value.map(r => ({
         date: r.date,
         externalOrderId: r.externalOrderId,
@@ -206,6 +207,9 @@ const statusOptions = [
         <p class="text-[12px] text-[var(--color-muted)] mt-1">
           From <span class="font-medium text-[var(--color-ink)]">{{ file?.name }}</span>
           <span v-if="dryRun.ambassadorHint" class="ml-2">· PDF hint: <span class="font-medium text-[var(--color-ink)]">{{ dryRun.ambassadorHint }}</span></span>
+          <span v-if="dryRun.format" class="ml-2">· Detected: <span class="font-medium text-[var(--color-ink)]">{{ dryRun.format }}</span>
+            <AppBadge v-if="dryRun.suggestedSaleType" tone="slate" :dot="false" shape="square" class="ml-1">imports as {{ dryRun.suggestedSaleType }}</AppBadge>
+          </span>
         </p>
       </div>
       <AppButton variant="secondary" class="w-full sm:w-auto" @click="reset">
@@ -225,6 +229,16 @@ const statusOptions = [
     <p v-if="totalsMismatch" class="text-[12px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3.5 py-2.5 inline-flex items-start gap-2">
       <span aria-hidden="true">⚠</span>
       Header and parsed totals don't match. Double-check the PDF before importing.
+    </p>
+
+    <p v-if="dryRun.reportedCommissionTotal" class="text-[12px] text-[var(--color-muted)] bg-[var(--color-surface-2)] border border-[var(--color-border-2)] rounded-lg px-3.5 py-2.5 inline-flex items-start gap-2 max-w-2xl">
+      <span aria-hidden="true">ℹ</span>
+      <span>
+        The statement reports
+        <span class="font-semibold text-[var(--color-ink)] tabular">{{ currencySymbol() }}{{ formatAmount(dryRun.reportedCommissionTotal) }}</span>
+        commission<template v-if="dryRun.reportedRates?.length"> at {{ dryRun.reportedRates.join('%, ') }}%</template>.
+        Commissions here come from each ambassador's rate plan — check it matches before importing as confirmed.
+      </span>
     </p>
 
     <!-- Per-row table -->
