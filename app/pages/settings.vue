@@ -3,8 +3,9 @@ import { useClub } from '~/composables/useClub'
 definePageMeta({ middleware: ['role'] })
 const { data: settings, refresh } = useAPI<Record<string, string>>('/settings')
 const { activeClub, activeClubId, refreshClubs } = useClub()
+const brandingRev = useState('branding-rev', () => 0)
 const { data: branding, refresh: refreshBranding } = useAPI<{ logoUrl: string | null; venueName: string }>(
-  () => activeClubId.value ? `/branding?club=${activeClubId.value}` : '/branding',
+  () => activeClubId.value ? `/branding?club=${activeClubId.value}&_=${brandingRev.value}` : `/branding?_=${brandingRev.value}`,
 )
 
 const form = ref({
@@ -50,6 +51,7 @@ async function save() {
     if (activeClubId.value && form.value.venue_name.trim() && form.value.venue_name !== activeClub.value?.name) {
       await m.put(`/clubs/${activeClubId.value}`, { name: form.value.venue_name.trim() })
       await refreshClubs()
+      useState('branding-rev', () => 0).value++
     }
     await refresh()
     saved.value = true

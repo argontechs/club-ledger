@@ -15,8 +15,15 @@ definePageMeta({ middleware: ['role'] })
 
 const month = ref('')
 const statusFilter = ref<'all' | 'paid' | 'unpaid'>('all')
-const { data: monthList } = useAPI<string[]>('/payouts/months')
+const { data: monthList, refresh: refreshMonths } = useAPI<string[]>('/payouts/months')
 const { data: rows, refresh } = useAPI<any[]>(() => month.value ? `/payouts?month=${month.value}` : '')
+
+// Creating payouts may target a month other than the selected pill (and may
+// introduce a brand-new month) — jump there and refresh both lists.
+async function onPayoutsCreated(createdMonth: string) {
+  month.value = createdMonth
+  await Promise.all([refreshMonths(), refresh()])
+}
 const { data: ambassadors } = useAPI<any[]>('/ambassadors')
 const { data: teams } = useAPI<any[]>('/teams')
 
@@ -291,7 +298,7 @@ const statusOptions = [
     <PayoutCreateModal
       :open="showCreate"
       @close="showCreate = false"
-      @created="refresh"
+      @created="onPayoutsCreated"
     />
 
     <PayoutReceiptModal

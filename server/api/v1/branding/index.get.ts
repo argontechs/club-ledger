@@ -9,9 +9,12 @@ export default defineEventHandler(async (event) => {
   const clubs = await ClubRepo.list()
   const club = (requested ? clubs.find(c => c.id === requested) : clubs[0]) ?? clubs[0]
   const currencySymbol = await SettingsService.get('currency_symbol')
+  // The upload timestamp baked into the filename versions the URL, so a
+  // replaced logo always gets a fresh URL — no stale browser/proxy caches.
+  const version = club?.logoPath?.match(/logo-(\d+)/)?.[1] ?? '0'
   return {
     clubId: club?.id ?? null,
-    logoUrl: club?.logoPath ? `/api/v1/branding/logo?club=${club.id}` : null,
+    logoUrl: club?.logoPath ? `/api/v1/branding/logo?club=${club.id}&v=${version}` : null,
     venueName: club?.name || 'Nono Club',
     currencySymbol: currencySymbol || 'RM',
   }

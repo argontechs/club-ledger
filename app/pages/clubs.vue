@@ -46,6 +46,7 @@ async function saveRename() {
   try {
     await m.put(`/clubs/${id}`, { name: name.trim() })
     await Promise.all([refresh(), refreshClubs()])
+    useState('branding-rev', () => 0).value++
     renaming.value = null
     toast.success('Club renamed')
   } catch (e: any) {

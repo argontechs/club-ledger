@@ -33,8 +33,9 @@ function logout() {
 </script>
 
 <template>
+  <!-- z-30 keeps the club-switcher flyout above main-column cards (header is z-20) -->
   <aside
-    class="flex flex-col w-[232px] bg-[var(--color-card)] border-r border-[var(--color-border-2)] h-screen sticky top-0 shrink-0"
+    class="flex flex-col w-[232px] bg-[var(--color-card)] border-r border-[var(--color-border-2)] h-screen sticky top-0 shrink-0 z-30"
   >
     <!-- Logo -->
     <div class="flex items-center gap-3 px-4 py-5">

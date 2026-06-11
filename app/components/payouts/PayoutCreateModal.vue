@@ -1,6 +1,6 @@
 <script setup lang="ts">
 const props = defineProps<{ open: boolean }>()
-const emit = defineEmits<{ (e: 'close'): void; (e: 'created'): void }>()
+const emit = defineEmits<{ (e: 'close'): void; (e: 'created', month: string): void }>()
 
 const month = ref('')
 const selected = ref<Set<number>>(new Set())
@@ -41,7 +41,7 @@ async function save() {
     const items = Array.from(selected.value).map(id => ({ ambassadorId: id, periodMonth: month.value }))
     const r = await m.post<{ created: number }>('/payouts/batch', { items, markPaid: markPaid.value })
     toast.success(`Created ${r.created} payout(s)`)
-    emit('created')
+    emit('created', month.value)
     emit('close')
   } catch (e: any) {
     toast.error(e?.data?.error?.message ?? 'Failed to create payouts')

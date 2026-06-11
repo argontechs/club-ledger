@@ -8,6 +8,8 @@ const m = useAPIMutation()
 const toast = useToast()
 const uploading = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
+// Refreshes the sidebar/header/favicon branding everywhere, instantly.
+const brandingRev = useState('branding-rev', () => 0)
 
 async function onPick(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0]
@@ -23,6 +25,7 @@ async function onPick(e: Event) {
     const fd = new FormData()
     fd.append('file', file)
     await m.post('/settings/logo', fd as any)
+    brandingRev.value++
     emit('changed')
     toast.success('Logo uploaded')
   } catch (e: any) {
@@ -37,6 +40,7 @@ async function remove() {
   uploading.value = true
   try {
     await m.del('/settings/logo')
+    brandingRev.value++
     emit('changed')
     toast.success('Logo removed')
   } catch (e: any) {
