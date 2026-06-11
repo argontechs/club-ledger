@@ -9,7 +9,7 @@ const saving = ref(false)
 const m = useAPIMutation()
 const toast = useToast()
 
-const { data: candidates } = useAPI<any[]>(() => month.value ? `/commissions/ambassadors-for-month?month=${month.value}` : '/commissions/ambassadors-for-month?month=____')
+const { data: candidates } = useAPI<any[]>(() => month.value ? `/commissions/ambassadors-for-month?month=${month.value}` : '')
 
 watch(() => props.open, (v) => {
   if (v) {

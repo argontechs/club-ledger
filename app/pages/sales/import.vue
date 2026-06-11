@@ -9,6 +9,7 @@ import {
 definePageMeta({ middleware: ['role'] })
 
 const { data: ambassadors } = useAPI<any[]>('/ambassadors')
+const activeClubId = useState<number | null>('active-club-id', () => null)
 
 interface ParsedRow {
   date: string
@@ -56,7 +57,10 @@ async function parse() {
     const auth = useAuthStore()
     const r = await $fetch<any>('/api/v1/sales/import', {
       method: 'POST', body: fd,
-      headers: { authorization: auth.token ? `Bearer ${auth.token}` : '' },
+      headers: {
+        authorization: auth.token ? `Bearer ${auth.token}` : '',
+        ...(activeClubId.value ? { 'x-club-id': String(activeClubId.value) } : {}),
+      },
     })
     dryRun.value = r
     rows.value = (r.rows ?? []).map((x: any) => ({ ...x, ambassadorId: '' }))
