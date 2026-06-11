@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { computed, inject } from 'vue'
 import { useRoute } from 'vue-router'
-import { Bars3Icon } from '@heroicons/vue/24/outline'
+import { Bars3Icon, QuestionMarkCircleIcon } from '@heroicons/vue/24/outline'
+import { useTour } from '~/composables/useTour'
 
 const route = useRoute()
 const drawer = useDrawer()
 const branding = inject<any>('branding', null)
+const tour = useTour()
+const hasTour = computed(() => !!tour.hasChapterFor(route.path))
 
 const titles: Record<string, { title: string; eyebrow?: string }> = {
   '/':             { title: 'Dashboard',    eyebrow: 'Overview' },
@@ -65,6 +68,16 @@ function openDrawer() { drawer.value = true }
 
     <div class="flex items-center gap-2 shrink-0">
       <slot name="actions" />
+      <button
+        v-if="hasTour"
+        type="button"
+        class="press w-8 h-8 inline-flex items-center justify-center rounded-lg text-[var(--color-muted-2)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-ink)]"
+        aria-label="Replay the page tour"
+        title="Replay the page tour"
+        @click="tour.restart(route.path)"
+      >
+        <QuestionMarkCircleIcon class="w-[18px] h-[18px]" />
+      </button>
     </div>
   </header>
 </template>

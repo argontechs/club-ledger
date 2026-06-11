@@ -75,6 +75,8 @@ export const users = mysqlTable('users', {
   name: varchar('name', { length: 120 }).notNull(),
   roleId: int('role_id').notNull(),
   ambassadorId: int('ambassador_id'),
+  // Per-chapter onboarding-tour progress: { [chapterId]: 'done' | 'skipped' }
+  onboardingState: json('onboarding_state').$type<Record<string, 'done' | 'skipped'>>(),
   ...ts(),
   ...softDelete(),
 })

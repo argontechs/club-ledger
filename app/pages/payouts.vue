@@ -181,7 +181,7 @@ const statusOptions = [
   <div class="space-y-6">
     <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
       <AppMonthPills v-model="month" :months="monthList ?? []" label="Month" empty-text="No payouts recorded yet" />
-      <AppButton class="w-full sm:w-auto" @click="showCreate = true">+ Create payouts</AppButton>
+      <AppButton class="w-full sm:w-auto" data-tour="payouts-create" @click="showCreate = true">+ Create payouts</AppButton>
     </div>
 
     <AppStatStrip :stats="summary" />

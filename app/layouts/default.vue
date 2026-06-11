@@ -1,9 +1,18 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useClub } from '~/composables/useClub'
+import { useTour } from '~/composables/useTour'
 
 const { refreshClubs } = useClub()
-onMounted(refreshClubs)
+const route = useRoute()
+const tour = useTour()
+
+onMounted(async () => {
+  await refreshClubs()
+  void tour.maybeStart(route.path)
+})
+watch(() => route.path, (p) => { void tour.maybeStart(p) })
 </script>
 
 <template>
@@ -22,5 +31,6 @@ onMounted(refreshClubs)
     </div>
     <AppConfirmModal />
     <AppToasts />
+    <TourPopover />
   </div>
 </template>

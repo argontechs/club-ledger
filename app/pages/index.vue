@@ -229,11 +229,11 @@ onBeforeUnmount(() => {
           {{ monthLabel ? `${monthLabel} · ${confirmedCount} confirmed sales · ${formatRM(totalSales)} in the room.` : 'No reporting period selected yet.' }}
         </p>
       </div>
-      <AppMonthPills v-model="month" :months="monthList ?? []" empty-text="No sales recorded yet" />
+      <div data-tour="month-pills"><AppMonthPills v-model="month" :months="monthList ?? []" empty-text="No sales recorded yet" /></div>
     </header>
 
     <!-- KPI strip — inverted hero + three accents -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3" data-tour="kpis">
       <AppCard tone="inverted" grain label="Total club sales" :prefix="currencySymbol()" :value="formatAmount(totalSales)">
         <template #icon>
           <span class="w-8 h-8 rounded-lg bg-white/8 flex items-center justify-center text-white/70">

@@ -60,6 +60,7 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
   <div ref="rootEl" class="relative px-2.5 pb-1">
     <button
       type="button"
+      data-tour="club-switcher"
       class="press w-full flex items-center gap-2 px-2.5 py-2 rounded-lg border border-[var(--color-border-2)] bg-[var(--color-hairline)] text-left hover:border-[var(--color-border)]"
       :aria-expanded="open"
       aria-haspopup="listbox"

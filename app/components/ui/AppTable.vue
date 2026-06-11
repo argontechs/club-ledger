@@ -32,6 +32,7 @@ defineProps<{ rows: T[]; loading?: boolean; emptyText?: string }>()
                   <InboxIcon class="w-6 h-6" />
                 </div>
                 <p class="text-[13px] font-medium text-[var(--color-muted)] max-w-[44ch] text-balance text-pretty leading-relaxed">{{ emptyText ?? 'Nothing here yet.' }}</p>
+                <slot name="empty-action" />
               </div>
             </td>
           </tr>

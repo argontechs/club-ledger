@@ -201,7 +201,13 @@ const isAdmin = computed(() => auth.user?.tier === 'admin' && !(auth.user as any
       </div>
     </div>
 
-    <AppTable :rows="pagedRows" empty-text="No ambassadors yet">
+    <AppTable :rows="pagedRows" empty-text="No ambassadors in this club yet — add your first, or copy people over from another club.">
+      <template #empty-action>
+        <div class="flex gap-2">
+          <AppButton size="sm" variant="secondary" v-if="otherClubs.length" @click="showImport = true">Import from club</AppButton>
+          <AppButton size="sm" @click="showAdd = true">+ New ambassador</AppButton>
+        </div>
+      </template>
       <template #head>
         <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Name</th>
         <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Team</th>

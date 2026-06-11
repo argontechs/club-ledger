@@ -98,7 +98,7 @@ async function changePassword() {
   <div class="space-y-6 max-w-5xl mx-auto">
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <!-- Venue card -->
-      <section class="bg-[var(--color-card)] border border-[var(--color-border-2)] rounded-2xl p-6 shadow-card space-y-4">
+      <section data-tour="settings-club" class="bg-[var(--color-card)] border border-[var(--color-border-2)] rounded-2xl p-6 shadow-card space-y-4">
         <header>
           <p class="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-muted-2)]">Branding</p>
           <h3 class="font-display text-[17px] font-semibold text-[var(--color-ink)] tracking-tight mt-0.5">Active club</h3>

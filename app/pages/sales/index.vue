@@ -141,7 +141,7 @@ async function bulkConfirmDrafts() {
         >
           Confirm all drafts
         </AppButton>
-        <AppButton class="w-full sm:w-auto" @click="openCreate">+ New sale</AppButton>
+        <AppButton class="w-full sm:w-auto" data-tour="new-sale" @click="openCreate">+ New sale</AppButton>
       </div>
     </div>
 
@@ -154,7 +154,14 @@ async function bulkConfirmDrafts() {
       </div>
     </div>
 
-    <AppTable :rows="pagedSales" empty-text="Nothing recorded for this period yet. Drop a POS PDF onto Import, or click + New sale.">
+    <div data-tour="sales-table">
+    <AppTable :rows="pagedSales" empty-text="Nothing recorded for this period yet — record your first sale or import a POS statement.">
+      <template #empty-action>
+        <div class="flex gap-2">
+          <AppButton size="sm" variant="secondary" @click="navigateTo('/sales/import')">Import PDF</AppButton>
+          <AppButton size="sm" @click="openCreate">+ New sale</AppButton>
+        </div>
+      </template>
       <template #head>
         <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Date</th>
         <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Ambassador</th>
@@ -181,6 +188,7 @@ async function bulkConfirmDrafts() {
         </td>
       </template>
     </AppTable>
+    </div>
 
     <AppPagination
       v-if="(rows ?? []).length > 0"

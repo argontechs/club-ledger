@@ -38,7 +38,11 @@ function fmtKpi(r: any) {
       <AppButton @click="showAdd = true">+ New role</AppButton>
     </div>
 
-    <AppTable :rows="roles ?? []" empty-text="No roles yet">
+    <div data-tour="roles-table">
+    <AppTable :rows="roles ?? []" empty-text="No roles yet — a role bundles the base rate, bonus, and KPI an ambassador earns under.">
+      <template #empty-action>
+        <AppButton size="sm" @click="showAdd = true">+ New role</AppButton>
+      </template>
       <template #head>
         <th class="px-4 py-3 text-left text-[10px] uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Name</th>
         <th class="px-4 py-3 text-left text-[10px] uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Tier</th>
@@ -67,6 +71,7 @@ function fmtKpi(r: any) {
         </td>
       </template>
     </AppTable>
+    </div>
 
     <RoleEditorModal
       :open="showAdd"
