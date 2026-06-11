@@ -15,9 +15,19 @@ export interface PayoutPdfContext {
   payout: any
   ambassador: any
   settings: Record<string, string>
-  user: any  // user record for the ambassador (if linked)
   rows: Array<{ date: string; type: string; tableNumber: string | null; amount: number; commissionRate: number; commission: number }>
-  totals: { gross: number; commission: number; bonus: number; total: number }
+  totals: { gross: number; commission: number; extra: number; total: number }
+}
+
+// The documents render the stored payout — they never recompute it. Total is
+// always payout.amount; whatever the payout includes beyond the per-sale frozen
+// commissions (pool/KPI bonus from batch creation, or a manual adjustment) is
+// the `extra` line.
+export function derivePayoutTotals(payoutAmount: number, commission: number) {
+  const r2 = (n: number) => Math.round(n * 100) / 100
+  const c = r2(commission)
+  const total = r2(payoutAmount)
+  return { commission: c, extra: r2(total - c), total }
 }
 
 async function loadContext(payoutId: number): Promise<PayoutPdfContext> {
@@ -40,23 +50,19 @@ async function loadContext(payoutId: number): Promise<PayoutPdfContext> {
   }))
   const gross = rows.reduce((a, r) => a + r.amount, 0)
   const commission = rows.reduce((a, r) => a + r.commission, 0)
-  // Bonus only if linked user is owner/admin — check via users table
-  let bonus = 0
-  let user: any = null
-  const linkedUsers = await db.select({ id: schema.users.id, name: schema.users.name, role: schema.roles.name })
-    .from(schema.users).innerJoin(schema.roles, eq(schema.roles.id, schema.users.roleId))
-    .where(eq(schema.users.ambassadorId, payout.ambassadorId))
-  user = linkedUsers[0] ?? null
-  if (user && (user.role === 'owner' || user.role === 'admin')) {
-    // Compute bonus across all confirmed sales in the month
-    const allSales = await db.select().from(schema.sales).where(and(like(schema.sales.date, `${month}%`), eq(schema.sales.status, 'confirmed')))
-    bonus = allSales.reduce((a, s) => a + Number(s.amount) * Number(s.confirmedBonusRate ?? 0) / 100, 0)
-  }
-  const total = commission + bonus
+  const { commission: c, extra, total } = derivePayoutTotals(Number(payout.amount), commission)
   return {
-    payout, ambassador, settings, user, rows,
-    totals: { gross, commission, bonus, total },
+    payout, ambassador, settings, rows,
+    totals: { gross, commission: c, extra, total },
   }
+}
+
+function extraLabel(ctx: PayoutPdfContext) {
+  if (ctx.totals.extra > 0) {
+    const snap = ctx.payout.snapshotBonusRate
+    return snap !== null && snap !== undefined ? `Bonus (${Number(snap)}%)` : 'Bonus'
+  }
+  return 'Adjustment'
 }
 
 function header(settings: Record<string, string>) {
@@ -86,10 +92,9 @@ const baseStyles = `
   .meta-grid .label { color:#888; }
 `
 
-export async function generatePayoutSummary(payoutId: number): Promise<{ filename: string; pdf: Buffer }> {
-  const ctx = await loadContext(payoutId)
+export function buildSummaryHtml(ctx: PayoutPdfContext): string {
   const { payout, ambassador, totals, rows, settings } = ctx
-  const html = `<!doctype html><html><head><meta charset="utf-8"><style>${baseStyles}</style></head><body>
+  return `<!doctype html><html><head><meta charset="utf-8"><style>${baseStyles}</style></head><body>
     ${header(settings)}
     <h2 style="margin-top:0">Payout Summary</h2>
     <div class="meta-grid">
@@ -121,26 +126,28 @@ export async function generatePayoutSummary(payoutId: number): Promise<{ filenam
         </tr>
       </tbody>
     </table>
-    ${totals.bonus > 0 ? `
-      <h2>Owner / Admin bonus</h2>
-      <p style="font-size:11px;color:#666">${ctx.user?.role === 'owner' ? 'Owner' : 'Admin'} bonus on all confirmed sales this month.</p>
+    ${totals.extra !== 0 ? `
+      <h2>${extraLabel(ctx)}</h2>
       <table><tbody>
-        <tr><td>Bonus</td><td class="right">${fmt(totals.bonus)}</td></tr>
+        <tr><td>${extraLabel(ctx)}</td><td class="right">${fmt(totals.extra)}</td></tr>
       </tbody></table>
     ` : ''}
     <h2>Total payout</h2>
     <p style="font-size:18px;font-weight:bold;color:#BE123C">RM ${fmt(totals.total)}</p>
   </body></html>`
-  const pdf = await htmlToPdf(html)
-  const slug = (ambassador.name ?? 'ambassador').replace(/[^\w]/g, '_')
-  const filename = `${payout.periodMonth}_COMM_${slug}.pdf`
+}
+
+export async function generatePayoutSummary(payoutId: number): Promise<{ filename: string; pdf: Buffer }> {
+  const ctx = await loadContext(payoutId)
+  const pdf = await htmlToPdf(buildSummaryHtml(ctx))
+  const slug = (ctx.ambassador.name ?? 'ambassador').replace(/[^\w]/g, '_')
+  const filename = `${ctx.payout.periodMonth}_COMM_${slug}.pdf`
   return { filename, pdf }
 }
 
-export async function generatePayslip(payoutId: number): Promise<{ filename: string; pdf: Buffer }> {
-  const ctx = await loadContext(payoutId)
+export function buildPayslipHtml(ctx: PayoutPdfContext): string {
   const { payout, ambassador, totals, settings } = ctx
-  const html = `<!doctype html><html><head><meta charset="utf-8"><style>${baseStyles}</style></head><body>
+  return `<!doctype html><html><head><meta charset="utf-8"><style>${baseStyles}</style></head><body>
     ${header(settings)}
     <h2 style="margin-top:0">Payslip</h2>
     <div class="meta-grid">
@@ -155,7 +162,7 @@ export async function generatePayslip(payoutId: number): Promise<{ filename: str
       <thead><tr><th>Item</th><th class="right">Amount (RM)</th></tr></thead>
       <tbody>
         <tr><td>Sales commission</td><td class="right">${fmt(totals.commission)}</td></tr>
-        ${totals.bonus > 0 ? `<tr><td>Owner / admin bonus</td><td class="right">${fmt(totals.bonus)}</td></tr>` : ''}
+        ${totals.extra !== 0 ? `<tr><td>${extraLabel(ctx)}</td><td class="right">${fmt(totals.extra)}</td></tr>` : ''}
         <tr class="total-row"><td>Total payable</td><td class="right">${fmt(totals.total)}</td></tr>
       </tbody>
     </table>
@@ -173,8 +180,12 @@ export async function generatePayslip(payoutId: number): Promise<{ filename: str
       This is a system-generated payslip. ${escapeHtml(settings.company_name ?? 'Nono Club')}.
     </p>
   </body></html>`
-  const pdf = await htmlToPdf(html)
-  const slug = (ambassador.name ?? 'ambassador').replace(/[^\w]/g, '_')
-  const filename = `${payout.periodMonth}_PAYSLIP_${slug}.pdf`
+}
+
+export async function generatePayslip(payoutId: number): Promise<{ filename: string; pdf: Buffer }> {
+  const ctx = await loadContext(payoutId)
+  const pdf = await htmlToPdf(buildPayslipHtml(ctx))
+  const slug = (ctx.ambassador.name ?? 'ambassador').replace(/[^\w]/g, '_')
+  const filename = `${ctx.payout.periodMonth}_PAYSLIP_${slug}.pdf`
   return { filename, pdf }
 }
