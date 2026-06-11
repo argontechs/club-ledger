@@ -83,7 +83,7 @@ export const RoleService = {
     return await RoleRepo.findById((r as any)[0].insertId)
   },
 
-  async update(actor: Actor & { roleName: string; tier?: string }, id: number, body: unknown) {
+  async update(actor: Actor & { roleName: string; tier?: string }, clubId: number, id: number, body: unknown) {
     if ((actor as any).tier !== 'admin') {
       throw ApiError.forbidden('Insufficient role')
     }
@@ -91,6 +91,7 @@ export const RoleService = {
     if (existing.clubId === null) {
       throw ApiError.forbidden('Staff roles are not managed here')
     }
+    if (existing.clubId !== clubId) throw ApiError.notFound('Role')
     const v = validateRolePayload(body)
 
     if (existing.isSystem) {
@@ -121,7 +122,7 @@ export const RoleService = {
     return await this.get(id)
   },
 
-  async remove(actor: Actor & { tier?: string }, id: number) {
+  async remove(actor: Actor & { tier?: string }, clubId: number, id: number) {
     if ((actor as any).tier !== 'admin') {
       throw ApiError.forbidden('Insufficient role')
     }
@@ -129,6 +130,7 @@ export const RoleService = {
     if (existing.clubId === null) {
       throw ApiError.forbidden('Staff roles are not managed here')
     }
+    if (existing.clubId !== clubId) throw ApiError.notFound('Role')
     if (existing.isSystem) throw ApiError.conflict('System roles cannot be deleted')
     const inUse = (await RoleRepo.countAmbassadorsUsing(id)) + (await RoleRepo.countUsersUsing(id))
     if (inUse > 0) throw ApiError.conflict(`Role is in use by ${inUse} record(s)`)

@@ -1,3 +1,6 @@
 import { SaleService } from '~~/server/services/SaleService'
-export default defineEventHandler((event) =>
-  SaleService.void(event.context.user!, Number(getRouterParam(event, 'id'))))
+import { requireClubId } from '~~/server/utils/club'
+export default defineEventHandler(async (event) => {
+  const clubId = await requireClubId(event)
+  return SaleService.void(event.context.user!, clubId, Number(getRouterParam(event, 'id')))
+})

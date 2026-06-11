@@ -22,6 +22,14 @@ function assertAdminTier(actor: Actor & { tier?: string }) {
   }
 }
 
+// Payout ids are global — ownership is asserted against the active club so
+// other clubs' payouts are indistinguishable from missing ones.
+async function getOwned(id: number, clubId: number) {
+  const p = await PayoutRepo.findById(id)
+  if (!p || p.clubId !== clubId) throw ApiError.notFound('Payout')
+  return p
+}
+
 export const PayoutService = {
   list: PayoutRepo.list,
   async create(actor: Actor & { id: number; roleName: string }, clubId: number, body: unknown) {
@@ -46,26 +54,23 @@ export const PayoutService = {
     })
     return await PayoutRepo.findById((r as any)[0].insertId)
   },
-  async markPaid(actor: Actor, id: number) {
+  async markPaid(actor: Actor, clubId: number, id: number) {
     assertAdminTier(actor)
-    const p = await PayoutRepo.findById(id)
-    if (!p) throw ApiError.notFound('Payout')
+    const p = await getOwned(id, clubId)
     await assertNotOwnerProtected(actor, { kind: 'payout', ambassadorId: p.ambassadorId })
     await PayoutRepo.update(id, { paidAt: new Date() })
     return await PayoutRepo.findById(id)
   },
-  async markUnpaid(actor: Actor, id: number) {
+  async markUnpaid(actor: Actor, clubId: number, id: number) {
     assertAdminTier(actor)
-    const p = await PayoutRepo.findById(id)
-    if (!p) throw ApiError.notFound('Payout')
+    const p = await getOwned(id, clubId)
     await assertNotOwnerProtected(actor, { kind: 'payout', ambassadorId: p.ambassadorId })
     await PayoutRepo.update(id, { paidAt: null })
     return await PayoutRepo.findById(id)
   },
-  async remove(actor: Actor, id: number) {
+  async remove(actor: Actor, clubId: number, id: number) {
     assertAdminTier(actor)
-    const p = await PayoutRepo.findById(id)
-    if (!p) throw ApiError.notFound('Payout')
+    const p = await getOwned(id, clubId)
     await assertNotOwnerProtected(actor, { kind: 'payout', ambassadorId: p.ambassadorId })
     for (const r of ((p.receiptPaths as any[]) ?? [])) {
       await deleteFromStorage(r.path).catch(() => {})
@@ -74,10 +79,9 @@ export const PayoutService = {
     await PayoutRepo.delete(id)
   },
 
-  async addReceipt(actor: Actor, id: number, file: { name: string; mime: string; data: Buffer }) {
+  async addReceipt(actor: Actor, clubId: number, id: number, file: { name: string; mime: string; data: Buffer }) {
     assertAdminTier(actor)
-    const p = await PayoutRepo.findById(id)
-    if (!p) throw ApiError.notFound('Payout')
+    const p = await getOwned(id, clubId)
     await assertNotOwnerProtected(actor, { kind: 'payout', ambassadorId: p.ambassadorId })
 
     const existing = (p.receiptPaths as any[]) ?? []
@@ -93,9 +97,8 @@ export const PayoutService = {
     return { receipts: updated }
   },
 
-  async getReceipt(_actor: Actor, id: number, index: number) {
-    const p = await PayoutRepo.findById(id)
-    if (!p) throw ApiError.notFound('Payout')
+  async getReceipt(_actor: Actor, clubId: number, id: number, index: number) {
+    const p = await getOwned(id, clubId)
     // No owner-protection on read — owner-protected target's receipts are still readable by admins for audit
     const arr = (p.receiptPaths as any[]) ?? []
     const item = arr[index]
@@ -104,10 +107,9 @@ export const PayoutService = {
     return { name: item.name as string, mime: item.mime as string, data }
   },
 
-  async deleteReceipt(actor: Actor, id: number, index: number) {
+  async deleteReceipt(actor: Actor, clubId: number, id: number, index: number) {
     assertAdminTier(actor)
-    const p = await PayoutRepo.findById(id)
-    if (!p) throw ApiError.notFound('Payout')
+    const p = await getOwned(id, clubId)
     await assertNotOwnerProtected(actor, { kind: 'payout', ambassadorId: p.ambassadorId })
     const arr = ((p.receiptPaths as any[]) ?? []).slice()
     const item = arr[index]

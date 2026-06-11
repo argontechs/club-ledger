@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const sale = {
   id: 1, status: 'draft', amount: '1000.00', date: '2026-04-01',
-  ambassadorId: 5, type: 'Table',
+  ambassadorId: 5, clubId: 1, type: 'Table',
   confirmedCommissionRate: null, confirmedBonusRate: null,
 } as any
 
@@ -41,7 +41,7 @@ describe('SaleService.confirm', () => {
   beforeEach(() => { sale.status = 'draft'; sale.confirmedCommissionRate = null; sale.confirmedBonusRate = null })
 
   it('freezes commission and bonus rate from ambassador role on confirm', async () => {
-    await SaleService.confirm({ id: 9, roleName: 'admin', tier: 'admin' } as any, 1)
+    await SaleService.confirm({ id: 9, roleName: 'admin', tier: 'admin' } as any, 1, 1)
     expect(SaleRepo.update).toHaveBeenCalledWith(1, expect.objectContaining({
       status: 'confirmed',
       confirmedCommissionRate: '8.00',
@@ -51,6 +51,11 @@ describe('SaleService.confirm', () => {
 
   it('refuses to confirm an already-confirmed sale', async () => {
     sale.status = 'confirmed'
-    await expect(SaleService.confirm({ id: 9, roleName: 'admin', tier: 'admin' } as any, 1)).rejects.toThrow()
+    await expect(SaleService.confirm({ id: 9, roleName: 'admin', tier: 'admin' } as any, 1, 1)).rejects.toThrow()
+  })
+
+  it('treats sales from another club as missing (404)', async () => {
+    await expect(SaleService.confirm({ id: 9, roleName: 'admin', tier: 'admin' } as any, 2, 1))
+      .rejects.toMatchObject({ statusCode: 404 })
   })
 })

@@ -21,9 +21,11 @@ const UpdateSchema = CreateSchema.partial()
 export const SaleService = {
   list: SaleRepo.list,
 
-  async get(id: number) {
+  // clubId (when provided) asserts ownership — records from other clubs are
+  // indistinguishable from missing ones (404, not 403, to avoid id probing).
+  async get(id: number, clubId?: number) {
     const s = await SaleRepo.findById(id)
-    if (!s) throw ApiError.notFound('Sale')
+    if (!s || (clubId !== undefined && s.clubId !== clubId)) throw ApiError.notFound('Sale')
     return s
   },
 
@@ -45,11 +47,11 @@ export const SaleService = {
     return await SaleRepo.findById((r as any)[0].insertId)
   },
 
-  async update(actor: Actor & { roleName: string; tier?: string }, id: number, body: unknown) {
+  async update(actor: Actor & { roleName: string; tier?: string }, clubId: number, id: number, body: unknown) {
     if ((actor as any).tier !== 'admin') {
       throw ApiError.forbidden('Insufficient role')
     }
-    const s = await this.get(id)
+    const s = await this.get(id, clubId)
     if (s.status !== 'draft') throw ApiError.conflict('Only draft sales can be edited')
     await assertNotOwnerProtected(actor, { kind: 'sale', ambassadorId: s.ambassadorId })
     const v = UpdateSchema.parse(body)
@@ -69,11 +71,11 @@ export const SaleService = {
     return await this.get(id)
   },
 
-  async confirm(actor: Actor & { roleName: string; tier?: string }, id: number) {
+  async confirm(actor: Actor & { roleName: string; tier?: string }, clubId: number, id: number) {
     if ((actor as any).tier !== 'admin') {
       throw ApiError.forbidden('Insufficient role')
     }
-    const s = await this.get(id)
+    const s = await this.get(id, clubId)
     if (s.status !== 'draft') throw ApiError.conflict('Only draft sales can be confirmed')
     await assertNotOwnerProtected(actor, { kind: 'sale', ambassadorId: s.ambassadorId })
     const amb = await AmbassadorRepo.findById(s.ambassadorId)
@@ -89,24 +91,24 @@ export const SaleService = {
     return await this.get(id)
   },
 
-  async void(actor: Actor & { roleName: string; tier?: string }, id: number) {
+  async void(actor: Actor & { roleName: string; tier?: string }, clubId: number, id: number) {
     if ((actor as any).tier !== 'admin') {
       throw ApiError.forbidden('Insufficient role')
     }
-    const s = await this.get(id)
+    const s = await this.get(id, clubId)
     if (s.status === 'voided') return s
     await assertNotOwnerProtected(actor, { kind: 'sale', ambassadorId: s.ambassadorId })
     await SaleRepo.update(id, { status: 'voided', voidedAt: new Date() } as any)
     return await this.get(id)
   },
 
-  async confirmDrafts(actor: Actor, filter: { clubId?: number; ambassadorId?: number; month?: string }) {
+  async confirmDrafts(actor: Actor, filter: { clubId: number; ambassadorId?: number; month?: string }) {
     const all = await SaleRepo.list({ ...filter, status: 'draft' })
     let confirmed = 0
     let failed = 0
     for (const s of all) {
       try {
-        await this.confirm(actor, s.id)
+        await this.confirm(actor, filter.clubId, s.id)
         confirmed++
       } catch {
         failed++

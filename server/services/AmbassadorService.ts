@@ -46,9 +46,9 @@ export const AmbassadorService = {
     return (actor as any).tier === 'admin' ? rows : rows.map(toSafe)
   },
 
-  async get(id: number, actor?: Actor & { tier?: string }) {
+  async get(id: number, actor?: Actor & { tier?: string }, clubId?: number) {
     const a = await AmbassadorRepo.findById(id)
-    if (!a) throw ApiError.notFound('Ambassador')
+    if (!a || (clubId !== undefined && a.clubId !== clubId)) throw ApiError.notFound('Ambassador')
     if (actor && (actor as any).tier !== 'admin') return toSafe(a)
     return a
   },
@@ -85,10 +85,19 @@ export const AmbassadorService = {
     }), body)
     await assertClubRole(v.roleId, clubId)
     const created: any[] = []
+    let skipped = 0
+    // Server-side dedupe: re-imports (double-submit, retries) are skipped, not duplicated.
+    const existing = await AmbassadorRepo.list({ clubId })
+    const existingIcs = new Set(existing.map((a: any) => a.ic).filter(Boolean))
+    const existingNames = new Set(existing.map((a: any) => a.name))
     for (const id of v.sourceAmbassadorIds) {
       const src = await AmbassadorRepo.findById(id)
       if (!src || src.deletedAt) throw ApiError.validation({ sourceAmbassadorIds: `Unknown ambassador (id=${id})` })
       if (src.clubId === clubId) throw ApiError.validation({ sourceAmbassadorIds: `Ambassador (id=${id}) is already in this club` })
+      if ((src.ic && existingIcs.has(src.ic)) || (!src.ic && existingNames.has(src.name))) {
+        skipped++
+        continue
+      }
       const r = await AmbassadorRepo.insert({
         name: src.name,
         fullName: src.fullName,
@@ -101,17 +110,21 @@ export const AmbassadorService = {
         bankOwnerName: src.bankOwnerName,
       })
       const row = await AmbassadorRepo.findById((r as any)[0].insertId)
-      if (row) created.push(row)
+      if (row) {
+        created.push(row)
+        if (row.ic) existingIcs.add(row.ic)
+        existingNames.add(row.name)
+      }
     }
-    return { created: created.length, items: created }
+    return { created: created.length, skipped, items: created }
   },
 
-  async update(actor: Actor & { roleName: string; tier?: string }, id: number, body: unknown) {
+  async update(actor: Actor & { roleName: string; tier?: string }, clubId: number, id: number, body: unknown) {
     if ((actor as any).tier !== 'admin') {
       throw ApiError.forbidden('Insufficient role')
     }
     const a = await AmbassadorRepo.findById(id)
-    if (!a) throw ApiError.notFound('Ambassador')
+    if (!a || a.clubId !== clubId) throw ApiError.notFound('Ambassador')
     await assertNotOwnerProtected(actor, { kind: 'ambassador', ambassadorId: id })
     if (a.isProtected && actor.roleName !== 'owner') throw ApiError.forbidden('Protected ambassador')
     const v = parseOrThrow(UpdateSchema, body)
@@ -130,12 +143,12 @@ export const AmbassadorService = {
     return await this.get(id)
   },
 
-  async remove(actor: Actor & { tier?: string }, id: number) {
+  async remove(actor: Actor & { tier?: string }, clubId: number, id: number) {
     if ((actor as any).tier !== 'admin') {
       throw ApiError.forbidden('Insufficient role')
     }
     const a = await AmbassadorRepo.findById(id)
-    if (!a) throw ApiError.notFound('Ambassador')
+    if (!a || a.clubId !== clubId) throw ApiError.notFound('Ambassador')
     await assertNotOwnerProtected(actor, { kind: 'ambassador', ambassadorId: id })
     if (a.isProtected) throw ApiError.conflict('Protected ambassador cannot be deleted')
     await AmbassadorRepo.softDelete(id)

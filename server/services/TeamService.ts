@@ -22,18 +22,18 @@ export const TeamService = {
     const r = await TeamRepo.insert({ name: v.name, clubId })
     return await TeamRepo.findById((r as any)[0].insertId)
   },
-  async update(actor: Actor & { tier?: string }, id: number, body: unknown) {
+  async update(actor: Actor & { tier?: string }, clubId: number, id: number, body: unknown) {
     assertAdminTier(actor)
     const t = await TeamRepo.findById(id)
-    if (!t) throw ApiError.notFound('Team')
+    if (!t || t.clubId !== clubId) throw ApiError.notFound('Team')
     const v = NameSchema.partial().parse(body)
     await TeamRepo.update(id, v)
     return await TeamRepo.findById(id)
   },
-  async remove(actor: Actor & { tier?: string }, id: number) {
+  async remove(actor: Actor & { tier?: string }, clubId: number, id: number) {
     assertAdminTier(actor)
     const t = await TeamRepo.findById(id)
-    if (!t) throw ApiError.notFound('Team')
+    if (!t || t.clubId !== clubId) throw ApiError.notFound('Team')
     await TeamRepo.softDelete(id)
   },
 }

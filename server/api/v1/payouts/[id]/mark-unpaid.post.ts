@@ -1,3 +1,6 @@
 import { PayoutService } from '~~/server/services/PayoutService'
-export default defineEventHandler((event) =>
-  PayoutService.markUnpaid(event.context.user!, Number(getRouterParam(event, 'id'))))
+import { requireClubId } from '~~/server/utils/club'
+export default defineEventHandler(async (event) => {
+  const clubId = await requireClubId(event)
+  return PayoutService.markUnpaid(event.context.user!, clubId, Number(getRouterParam(event, 'id')))
+})
