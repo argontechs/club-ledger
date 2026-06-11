@@ -1,6 +1,6 @@
 import {
   mysqlTable, int, varchar, text, datetime, date, decimal,
-  mysqlEnum, tinyint, primaryKey, index, char, json,
+  mysqlEnum, tinyint, primaryKey, index, char, json, unique,
 } from 'drizzle-orm/mysql-core'
 import { sql } from 'drizzle-orm'
 
@@ -10,9 +10,21 @@ const ts = () => ({
 })
 const softDelete = () => ({ deletedAt: datetime('deleted_at', { mode: 'date' }) })
 
+export const clubs = mysqlTable('clubs', {
+  id: int('id').autoincrement().primaryKey(),
+  name: varchar('name', { length: 120 }).notNull(),
+  logoPath: varchar('logo_path', { length: 500 }),
+  ...ts(),
+  ...softDelete(),
+})
+
+// club_id NULL = company-level staff role (what user logins reference, carries
+// the permission tier); club_id = N = commission role of club N (what
+// ambassadors reference, carries the rates).
 export const roles = mysqlTable('roles', {
   id: int('id').autoincrement().primaryKey(),
-  name: varchar('name', { length: 40 }).notNull().unique(),
+  name: varchar('name', { length: 40 }).notNull(),
+  clubId: int('club_id'),
   tier: mysqlEnum('tier', ['admin', 'ambassador']).default('ambassador').notNull(),
   baseRate: decimal('base_rate', { precision: 5, scale: 2 }).default('0.00').notNull(),
   bonusRate: decimal('bonus_rate', { precision: 5, scale: 2 }),
@@ -20,14 +32,20 @@ export const roles = mysqlTable('roles', {
   requiresKpi: tinyint('requires_kpi').default(0).notNull(),
   isSystem: tinyint('is_system').default(0).notNull(),
   ...ts(),
-})
+}, (t) => ({
+  clubName: unique('roles_club_name_unique').on(t.clubId, t.name),
+  byClub: index('roles_by_club').on(t.clubId),
+}))
 
 export const teams = mysqlTable('teams', {
   id: int('id').autoincrement().primaryKey(),
   name: varchar('name', { length: 80 }).notNull(),
+  clubId: int('club_id').notNull(),
   ...ts(),
   ...softDelete(),
-})
+}, (t) => ({
+  byClub: index('teams_by_club').on(t.clubId),
+}))
 
 export const ambassadors = mysqlTable('ambassadors', {
   id: int('id').autoincrement().primaryKey(),
@@ -36,13 +54,16 @@ export const ambassadors = mysqlTable('ambassadors', {
   ic: varchar('ic', { length: 60 }),
   teamId: int('team_id'),
   roleId: int('role_id').notNull(),
+  clubId: int('club_id').notNull(),
   isProtected: tinyint('is_protected').default(0).notNull(),
   bankName: varchar('bank_name', { length: 120 }),
   bankAccountNumber: varchar('bank_account_number', { length: 60 }),
   bankOwnerName: varchar('bank_owner_name', { length: 200 }),
   ...ts(),
   ...softDelete(),
-})
+}, (t) => ({
+  byClub: index('ambassadors_by_club').on(t.clubId),
+}))
 
 export const users = mysqlTable('users', {
   id: int('id').autoincrement().primaryKey(),
@@ -59,6 +80,7 @@ export const sales = mysqlTable('sales', {
   id: int('id').autoincrement().primaryKey(),
   date: date('date', { mode: 'string' }).notNull(),
   ambassadorId: int('ambassador_id').notNull(),
+  clubId: int('club_id').notNull(),
   type: mysqlEnum('type', ['Table', 'BGO']).notNull(),
   amount: decimal('amount', { precision: 12, scale: 2 }).notNull(),
   notes: text('notes'),
@@ -75,11 +97,13 @@ export const sales = mysqlTable('sales', {
   byDate: index('sales_by_date').on(t.date),
   byAmbassador: index('sales_by_ambassador').on(t.ambassadorId),
   byOrderId: index('sales_by_order_id').on(t.externalOrderId),
+  byClub: index('sales_by_club').on(t.clubId, t.date),
 }))
 
 export const payouts = mysqlTable('payouts', {
   id: int('id').autoincrement().primaryKey(),
   ambassadorId: int('ambassador_id').notNull(),
+  clubId: int('club_id').notNull(),
   periodMonth: char('period_month', { length: 7 }).notNull(),
   amount: decimal('amount', { precision: 12, scale: 2 }).notNull(),
   snapshotBonusRate: decimal('snapshot_bonus_rate', { precision: 5, scale: 2 }),
@@ -93,6 +117,7 @@ export const payouts = mysqlTable('payouts', {
   ...ts(),
 }, (t) => ({
   byAmbMonth: index('payouts_by_amb_month').on(t.ambassadorId, t.periodMonth),
+  byClub: index('payouts_by_club').on(t.clubId, t.periodMonth),
 }))
 
 export const settings = mysqlTable('settings', {
@@ -101,6 +126,7 @@ export const settings = mysqlTable('settings', {
   updatedAt: datetime('updated_at', { mode: 'date' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
 })
 
+export type Club = typeof clubs.$inferSelect
 export type Role = typeof roles.$inferSelect
 export type Team = typeof teams.$inferSelect
 export type Ambassador = typeof ambassadors.$inferSelect
