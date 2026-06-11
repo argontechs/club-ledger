@@ -1,0 +1,67 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+
+const roles = [
+  { id: 1, name: 'admin', tier: 'admin', baseRate: '8.00', bonusRate: '1.00', requiresKpi: 0, kpiThreshold: null },
+  { id: 3, name: 'vip', tier: 'ambassador', baseRate: '8.00', bonusRate: '2.00', requiresKpi: 1, kpiThreshold: '30000.00' },
+]
+const ambassadors = [
+  { id: 11, name: 'Mok', roleId: 1, deletedAt: null },
+  { id: 13, name: 'Sasha', roleId: 3, deletedAt: null },
+]
+// Month pool = 50_000 (Mok 20k @8%, Sasha 30k @8%); Sasha hits the 30k KPI exactly.
+const sales = [
+  { id: 1, date: '2026-04-05', ambassadorId: 11, amount: '20000.00', status: 'confirmed', type: 'Table', confirmedCommissionRate: '8.00', confirmedBonusRate: '1.00' },
+  { id: 2, date: '2026-04-06', ambassadorId: 13, amount: '30000.00', status: 'confirmed', type: 'Table', confirmedCommissionRate: '8.00', confirmedBonusRate: null },
+]
+const insertedPayouts: any[] = []
+
+vi.mock('~~/server/repositories/RoleRepository', () => ({
+  RoleRepo: { list: vi.fn(async () => roles) },
+}))
+vi.mock('~~/server/repositories/AmbassadorRepository', () => ({
+  AmbassadorRepo: { list: vi.fn(async () => ambassadors) },
+}))
+vi.mock('~~/server/repositories/SaleRepository', () => ({
+  SaleRepo: { list: vi.fn(async () => sales) },
+}))
+vi.mock('~~/server/repositories/PayoutRepository', () => ({
+  PayoutRepo: {
+    list: vi.fn(async () => []),
+    insert: vi.fn(async (v: any) => { insertedPayouts.push(v); return [{ insertId: insertedPayouts.length }] }),
+    findById: vi.fn(async (id: number) => ({ id, ...insertedPayouts[id - 1] })),
+  },
+}))
+vi.mock('~~/server/utils/permissions', () => ({
+  assertNotOwnerProtected: vi.fn(async () => undefined),
+}))
+
+import { PayoutService } from '~~/server/services/PayoutService'
+
+const admin = { id: 1, roleName: 'admin', tier: 'admin' } as any
+
+beforeEach(() => { insertedPayouts.length = 0 })
+
+describe('PayoutService.createBatch', () => {
+  it('admin-tier earner gets commission + pool bonus, identical to computeCommissions', async () => {
+    await PayoutService.createBatch(admin, { items: [{ ambassadorId: 11, periodMonth: '2026-04' }] })
+    // commission 20000*8% = 1600; pool bonus 50000*1% = 500
+    expect(insertedPayouts).toHaveLength(1)
+    expect(insertedPayouts[0].amount).toBe('2100.00')
+    expect(insertedPayouts[0].snapshotBonusRate).toBe('1.00')
+  })
+
+  it('KPI-gated ambassador at threshold gets own-sales bonus and snapshots', async () => {
+    await PayoutService.createBatch(admin, { items: [{ ambassadorId: 13, periodMonth: '2026-04' }] })
+    // commission 30000*8% = 2400; bonus 30000*2% = 600 (KPI met at exactly 30000)
+    expect(insertedPayouts[0].amount).toBe('3000.00')
+    expect(insertedPayouts[0].snapshotBonusRate).toBe('2.00')
+    expect(insertedPayouts[0].snapshotKpiThreshold).toBe('30000.00')
+    expect(insertedPayouts[0].snapshotRequiresKpi).toBe(1)
+  })
+
+  it('rejects non-admin tier', async () => {
+    await expect(
+      PayoutService.createBatch({ id: 9, roleName: 'x', tier: 'ambassador' } as any, { items: [{ ambassadorId: 11, periodMonth: '2026-04' }] }),
+    ).rejects.toMatchObject({ statusCode: 403 })
+  })
+})
