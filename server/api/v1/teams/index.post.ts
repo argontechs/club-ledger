@@ -1,3 +1,6 @@
 import { TeamService } from '~~/server/services/TeamService'
-export default defineEventHandler(async (event) =>
-  TeamService.create(event.context.user! as any, await readBody(event)))
+import { requireClubId } from '~~/server/utils/club'
+export default defineEventHandler(async (event) => {
+  const clubId = await requireClubId(event)
+  return TeamService.create(event.context.user! as any, clubId, await readBody(event))
+})

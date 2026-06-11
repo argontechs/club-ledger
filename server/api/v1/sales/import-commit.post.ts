@@ -1,3 +1,6 @@
 import { PDFImportService } from '~~/server/services/PDFImportService'
-export default defineEventHandler(async (event) =>
-  PDFImportService.commit(event.context.user! as any, await readBody(event)))
+import { requireClubId } from '~~/server/utils/club'
+export default defineEventHandler(async (event) => {
+  const clubId = await requireClubId(event)
+  return PDFImportService.commit(event.context.user! as any, clubId, await readBody(event))
+})

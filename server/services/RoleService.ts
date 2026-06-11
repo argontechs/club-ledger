@@ -42,7 +42,15 @@ export function validateRolePayload(input: unknown): RolePayload {
 }
 
 export const RoleService = {
-  list: RoleRepo.list,
+  // Commission roles of the active club — what the roles page manages.
+  listForClub(clubId: number) {
+    return RoleRepo.listByClub(clubId)
+  },
+
+  // Company-level staff roles — what the access page assigns to logins.
+  listStaff() {
+    return RoleRepo.listStaff()
+  },
 
   async get(id: number) {
     const r = await RoleRepo.findById(id)
@@ -50,7 +58,7 @@ export const RoleService = {
     return r
   },
 
-  async create(actor: Actor & { roleName: string; tier?: string }, body: unknown) {
+  async create(actor: Actor & { roleName: string; tier?: string }, clubId: number, body: unknown) {
     if ((actor as any).tier !== 'admin') {
       throw ApiError.forbidden('Insufficient role')
     }
@@ -59,8 +67,10 @@ export const RoleService = {
     if (v.tier === 'admin' && actor.roleName !== 'owner') {
       throw ApiError.forbidden('Only Owner can create admin-tier roles')
     }
-    const dup = await RoleRepo.findByName(v.name)
-    if (dup) throw ApiError.conflict('A role with that name already exists')
+    const clubRoles = await RoleRepo.listByClub(clubId)
+    if (clubRoles.some(r => r.name === v.name)) {
+      throw ApiError.conflict('A role with that name already exists in this club')
+    }
 
     const r = await RoleRepo.insert({
       name: v.name, tier: v.tier,
@@ -68,6 +78,7 @@ export const RoleService = {
       bonusRate: v.bonusRate === null ? null : v.bonusRate.toFixed(2),
       kpiThreshold: v.kpiThreshold === null ? null : v.kpiThreshold.toFixed(2),
       requiresKpi: v.requiresKpi ? 1 : 0,
+      clubId,
     })
     return await RoleRepo.findById((r as any)[0].insertId)
   },
@@ -77,6 +88,9 @@ export const RoleService = {
       throw ApiError.forbidden('Insufficient role')
     }
     const existing = await this.get(id)
+    if (existing.clubId === null) {
+      throw ApiError.forbidden('Staff roles are not managed here')
+    }
     const v = validateRolePayload(body)
 
     if (existing.isSystem) {
@@ -91,8 +105,10 @@ export const RoleService = {
       throw ApiError.forbidden('Only Owner can promote a role to admin tier')
     }
     if (v.name !== existing.name) {
-      const dup = await RoleRepo.findByName(v.name)
-      if (dup && dup.id !== id) throw ApiError.conflict('A role with that name already exists')
+      const clubRoles = await RoleRepo.listByClub(existing.clubId)
+      if (clubRoles.some(r => r.name === v.name && r.id !== id)) {
+        throw ApiError.conflict('A role with that name already exists in this club')
+      }
     }
 
     await RoleRepo.update(id, {
@@ -110,6 +126,9 @@ export const RoleService = {
       throw ApiError.forbidden('Insufficient role')
     }
     const existing = await this.get(id)
+    if (existing.clubId === null) {
+      throw ApiError.forbidden('Staff roles are not managed here')
+    }
     if (existing.isSystem) throw ApiError.conflict('System roles cannot be deleted')
     const inUse = (await RoleRepo.countAmbassadorsUsing(id)) + (await RoleRepo.countUsersUsing(id))
     if (inUse > 0) throw ApiError.conflict(`Role is in use by ${inUse} record(s)`)

@@ -2,15 +2,17 @@ import { and, eq } from 'drizzle-orm'
 import { useDB, schema } from '~~/server/db/client'
 
 export const PayoutRepo = {
-  list(filter: { month?: string; ambassadorId?: number } = {}) {
+  list(filter: { clubId?: number; month?: string; ambassadorId?: number } = {}) {
     const db = useDB()
     const where = []
+    if (filter.clubId) where.push(eq(schema.payouts.clubId, filter.clubId))
     if (filter.month) where.push(eq(schema.payouts.periodMonth, filter.month))
     if (filter.ambassadorId) where.push(eq(schema.payouts.ambassadorId, filter.ambassadorId))
     return db.select().from(schema.payouts).where(where.length ? and(...where) : undefined)
   },
   insert(values: {
     ambassadorId: number
+    clubId: number
     periodMonth: string
     amount: string
     notes?: string | null
@@ -22,6 +24,7 @@ export const PayoutRepo = {
   }) {
     return useDB().insert(schema.payouts).values({
       ambassadorId: values.ambassadorId,
+      clubId: values.clubId,
       periodMonth: values.periodMonth,
       amount: values.amount,
       notes: values.notes ?? null,

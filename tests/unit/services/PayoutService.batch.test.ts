@@ -5,8 +5,8 @@ const roles = [
   { id: 3, name: 'vip', tier: 'ambassador', baseRate: '8.00', bonusRate: '2.00', requiresKpi: 1, kpiThreshold: '30000.00' },
 ]
 const ambassadors = [
-  { id: 11, name: 'Mok', roleId: 1, deletedAt: null },
-  { id: 13, name: 'Sasha', roleId: 3, deletedAt: null },
+  { id: 11, name: 'Mok', roleId: 1, clubId: 1, deletedAt: null },
+  { id: 13, name: 'Sasha', roleId: 3, clubId: 1, deletedAt: null },
 ]
 // Month pool = 50_000 (Mok 20k @8%, Sasha 30k @8%); Sasha hits the 30k KPI exactly.
 const sales = [
@@ -43,15 +43,16 @@ beforeEach(() => { insertedPayouts.length = 0 })
 
 describe('PayoutService.createBatch', () => {
   it('admin-tier earner gets commission + pool bonus, identical to computeCommissions', async () => {
-    await PayoutService.createBatch(admin, { items: [{ ambassadorId: 11, periodMonth: '2026-04' }] })
+    await PayoutService.createBatch(admin, 1, { items: [{ ambassadorId: 11, periodMonth: '2026-04' }] })
     // commission 20000*8% = 1600; pool bonus 50000*1% = 500
     expect(insertedPayouts).toHaveLength(1)
     expect(insertedPayouts[0].amount).toBe('2100.00')
     expect(insertedPayouts[0].snapshotBonusRate).toBe('1.00')
+    expect(insertedPayouts[0].clubId).toBe(1)
   })
 
   it('KPI-gated ambassador at threshold gets own-sales bonus and snapshots', async () => {
-    await PayoutService.createBatch(admin, { items: [{ ambassadorId: 13, periodMonth: '2026-04' }] })
+    await PayoutService.createBatch(admin, 1, { items: [{ ambassadorId: 13, periodMonth: '2026-04' }] })
     // commission 30000*8% = 2400; bonus 30000*2% = 600 (KPI met at exactly 30000)
     expect(insertedPayouts[0].amount).toBe('3000.00')
     expect(insertedPayouts[0].snapshotBonusRate).toBe('2.00')
@@ -61,7 +62,7 @@ describe('PayoutService.createBatch', () => {
 
   it('rejects non-admin tier', async () => {
     await expect(
-      PayoutService.createBatch({ id: 9, roleName: 'x', tier: 'ambassador' } as any, { items: [{ ambassadorId: 11, periodMonth: '2026-04' }] }),
+      PayoutService.createBatch({ id: 9, roleName: 'x', tier: 'ambassador' } as any, 1, { items: [{ ambassadorId: 11, periodMonth: '2026-04' }] }),
     ).rejects.toMatchObject({ statusCode: 403 })
   })
 })

@@ -32,9 +32,16 @@ async function loadOne(id: number) {
   return r[0]
 }
 
-async function getRoleName(roleId: number) {
+// Logins hold company-level STAFF roles only (club_id IS NULL); commission
+// roles belong to clubs and are assigned to ambassadors, never to users.
+async function getStaffRoleName(roleId: number) {
   const r = await useDB().select().from(schema.roles).where(eq(schema.roles.id, roleId)).limit(1)
-  return r[0]?.name
+  const role = r[0]
+  if (!role) return undefined
+  if (role.clubId !== null) {
+    throw ApiError.validation({ roleId: 'Users must be assigned a staff role, not a club commission role' })
+  }
+  return role.name
 }
 
 function assertAdminTier(actor: Actor & { tier?: string }) {
@@ -57,7 +64,7 @@ export const UserService = {
   async create(actor: Actor & { tier?: string }, body: unknown) {
     assertAdminTier(actor)
     const v = CreateSchema.parse(body)
-    const targetRole = await getRoleName(v.roleId)
+    const targetRole = await getStaffRoleName(v.roleId)
     if (!targetRole) throw ApiError.validation({ roleId: 'Unknown role' })
     if (targetRole === 'owner' && actor.roleName !== 'owner')
       throw ApiError.forbidden('owner-protected')
@@ -76,7 +83,7 @@ export const UserService = {
     await assertNotOwnerProtected(actor, { kind: 'user', targetRoleName: target.role })
     const v = UpdateSchema.parse(body)
     if (v.roleId !== undefined) {
-      const newRole = await getRoleName(v.roleId)
+      const newRole = await getStaffRoleName(v.roleId)
       if (!newRole) throw ApiError.validation({ roleId: 'Unknown role' })
       if (newRole === 'owner' && actor.roleName !== 'owner')
         throw ApiError.forbidden('owner-protected')

@@ -5,12 +5,12 @@ const role = { id: 7, name: 'VIP', tier: 'ambassador', baseRate: '9.50', bonusRa
 
 vi.mock('~~/server/repositories/SaleRepository', () => ({
   SaleRepo: {
-    findByExternalOrderIds: vi.fn(async () => []),
+    findByExternalOrderIds: vi.fn(async (_clubId: number, _ids: string[]) => []),
     insertMany: vi.fn(async (rows: any[]) => { inserted.push(...rows) }),
   },
 }))
 vi.mock('~~/server/repositories/AmbassadorRepository', () => ({
-  AmbassadorRepo: { findById: vi.fn(async (id: number) => ({ id, roleId: 7, deletedAt: null })) },
+  AmbassadorRepo: { findById: vi.fn(async (id: number) => ({ id, roleId: 7, clubId: 1, deletedAt: null })) },
 }))
 vi.mock('~~/server/repositories/RoleRepository', () => ({
   RoleRepo: { findById: vi.fn(async (id: number) => (id === 7 ? role : undefined)) },
@@ -28,23 +28,30 @@ beforeEach(() => { inserted.length = 0 })
 
 describe('PDFImportService.commit', () => {
   it('freezes rates from the ambassador role when importing as confirmed', async () => {
-    await PDFImportService.commit(admin, { status: 'confirmed', rows: [row] })
+    await PDFImportService.commit(admin, 1, { status: 'confirmed', rows: [row] })
     expect(inserted).toHaveLength(1)
     expect(inserted[0].confirmedCommissionRate).toBe('9.50')
     expect(inserted[0].confirmedBonusRate).toBe('1.25')
     expect(inserted[0].confirmedAt).toBeInstanceOf(Date)
+    expect(inserted[0].clubId).toBe(1)
   })
 
   it('leaves rates null when importing as draft', async () => {
-    await PDFImportService.commit(admin, { status: 'draft', rows: [row] })
+    await PDFImportService.commit(admin, 1, { status: 'draft', rows: [row] })
     expect(inserted[0].confirmedCommissionRate).toBeNull()
     expect(inserted[0].confirmedBonusRate).toBeNull()
     expect(inserted[0].confirmedAt).toBeNull()
   })
 
+  it('rejects ambassadors from a different club', async () => {
+    await expect(
+      PDFImportService.commit(admin, 2, { status: 'draft', rows: [row] }),
+    ).rejects.toMatchObject({ statusCode: 422 })
+  })
+
   it('rejects non-admin-tier actors', async () => {
     await expect(
-      PDFImportService.commit({ id: 2, roleName: 'whatever', tier: 'ambassador' } as any, { status: 'draft', rows: [row] }),
+      PDFImportService.commit({ id: 2, roleName: 'whatever', tier: 'ambassador' } as any, 1, { status: 'draft', rows: [row] }),
     ).rejects.toMatchObject({ statusCode: 403 })
   })
 })

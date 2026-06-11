@@ -27,9 +27,11 @@ function parseOrThrow<T>(s: z.ZodSchema<T>, body: unknown): T {
   return r.data
 }
 
-async function assertRoleExists(roleId: number) {
+// Ambassadors carry commission roles, which are club-scoped — the role must
+// belong to the same club as the ambassador.
+async function assertClubRole(roleId: number, clubId: number) {
   const r = await RoleRepo.findById(roleId)
-  if (!r) throw ApiError.validation({ roleId: 'Unknown role' })
+  if (!r || r.clubId !== clubId) throw ApiError.validation({ roleId: 'Unknown role for this club' })
 }
 
 // PII guard: IC and bank details are admin-tier-only. Pages visible to
@@ -39,7 +41,7 @@ function toSafe(a: any) {
 }
 
 export const AmbassadorService = {
-  async list(actor: Actor & { tier?: string }, filter: { teamId?: number; includeDeleted?: boolean } = {}) {
+  async list(actor: Actor & { tier?: string }, filter: { clubId?: number; teamId?: number; includeDeleted?: boolean } = {}) {
     const rows = await AmbassadorRepo.list(filter)
     return (actor as any).tier === 'admin' ? rows : rows.map(toSafe)
   },
@@ -51,23 +53,57 @@ export const AmbassadorService = {
     return a
   },
 
-  async create(actor: Actor & { tier?: string }, body: unknown) {
+  async create(actor: Actor & { tier?: string }, clubId: number, body: unknown) {
     if ((actor as any).tier !== 'admin') {
       throw ApiError.forbidden('Insufficient role')
     }
     const v = parseOrThrow(CreateSchema, body)
-    await assertRoleExists(v.roleId)
+    await assertClubRole(v.roleId, clubId)
     const r = await AmbassadorRepo.insert({
       name: v.name,
       fullName: v.fullName ?? null,
       ic: v.ic ?? null,
       teamId: v.teamId ?? null,
       roleId: v.roleId,
+      clubId,
       bankName: v.bankName ?? null,
       bankAccountNumber: v.bankAccountNumber ?? null,
       bankOwnerName: v.bankOwnerName ?? null,
     })
     return await AmbassadorRepo.findById((r as any)[0].insertId)
+  },
+
+  // Cross-club import: copies identity + bank details into the current club.
+  // Copies are independent records — each club's ledger stays self-contained.
+  async importFromClub(actor: Actor & { tier?: string }, clubId: number, body: unknown) {
+    if ((actor as any).tier !== 'admin') {
+      throw ApiError.forbidden('Insufficient role')
+    }
+    const v = parseOrThrow(z.object({
+      sourceAmbassadorIds: z.array(z.number().int().positive()).min(1).max(100),
+      roleId: z.number().int().positive(),
+    }), body)
+    await assertClubRole(v.roleId, clubId)
+    const created: any[] = []
+    for (const id of v.sourceAmbassadorIds) {
+      const src = await AmbassadorRepo.findById(id)
+      if (!src || src.deletedAt) throw ApiError.validation({ sourceAmbassadorIds: `Unknown ambassador (id=${id})` })
+      if (src.clubId === clubId) throw ApiError.validation({ sourceAmbassadorIds: `Ambassador (id=${id}) is already in this club` })
+      const r = await AmbassadorRepo.insert({
+        name: src.name,
+        fullName: src.fullName,
+        ic: src.ic,
+        teamId: null,
+        roleId: v.roleId,
+        clubId,
+        bankName: src.bankName,
+        bankAccountNumber: src.bankAccountNumber,
+        bankOwnerName: src.bankOwnerName,
+      })
+      const row = await AmbassadorRepo.findById((r as any)[0].insertId)
+      if (row) created.push(row)
+    }
+    return { created: created.length, items: created }
   },
 
   async update(actor: Actor & { roleName: string; tier?: string }, id: number, body: unknown) {
@@ -79,7 +115,7 @@ export const AmbassadorService = {
     await assertNotOwnerProtected(actor, { kind: 'ambassador', ambassadorId: id })
     if (a.isProtected && actor.roleName !== 'owner') throw ApiError.forbidden('Protected ambassador')
     const v = parseOrThrow(UpdateSchema, body)
-    if (v.roleId !== undefined) await assertRoleExists(v.roleId)
+    if (v.roleId !== undefined) await assertClubRole(v.roleId, a.clubId)
 
     const patch: Record<string, unknown> = {}
     if (v.name !== undefined) patch.name = v.name

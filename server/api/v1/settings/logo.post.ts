@@ -1,13 +1,16 @@
-import { SettingsService } from '~~/server/services/SettingsService'
+import { ClubRepo } from '~~/server/repositories/ClubRepository'
 import { saveFile, deleteFromStorage } from '~~/server/utils/storage'
 import { ApiError } from '~~/server/utils/errors'
+import { requireClubId } from '~~/server/utils/club'
 
 const MAX_BYTES = 2 * 1024 * 1024
 const ALLOWED = ['image/png', 'image/jpeg', 'image/svg+xml']
 
+// Uploads the ACTIVE club's logo (logos are per-club venue identity).
 export default defineEventHandler(async (event) => {
   const actor = event.context.user!
   if ((actor as any).tier !== 'admin') throw ApiError.forbidden('Insufficient role')
+  const clubId = await requireClubId(event)
 
   const parts = await readMultipartFormData(event)
   if (!parts || parts.length === 0) throw ApiError.validation({ file: 'No file uploaded' })
@@ -21,12 +24,12 @@ export default defineEventHandler(async (event) => {
   }
   const ext = mime === 'image/svg+xml' ? 'svg' : mime === 'image/jpeg' ? 'jpg' : 'png'
 
-  const existing = await SettingsService.get('company_logo_path')
-  if (existing) await deleteFromStorage(existing).catch(() => {})
+  const club = await ClubRepo.findById(clubId)
+  if (club?.logoPath) await deleteFromStorage(club.logoPath).catch(() => {})
 
-  const relPath = `branding/logo-${Date.now()}.${ext}`
+  const relPath = `branding/club-${clubId}/logo-${Date.now()}.${ext}`
   await saveFile(relPath, file.data)
-  await SettingsService.set('company_logo_path', relPath)
+  await ClubRepo.update(clubId, { logoPath: relPath })
 
-  return { ok: true, logoUrl: '/api/v1/branding/logo' }
+  return { ok: true, logoUrl: `/api/v1/branding/logo?club=${clubId}` }
 })

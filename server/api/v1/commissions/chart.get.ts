@@ -1,8 +1,10 @@
-import { like, isNull } from 'drizzle-orm'
+import { like, isNull, and, eq } from 'drizzle-orm'
 import { useDB, schema } from '~~/server/db/client'
 import { computeCommissions, type CommissionRoleConfig, type CommissionEarner } from '~~/server/services/CommissionService'
+import { requireClubId } from '~~/server/utils/club'
 
-export default defineEventHandler(async () => {
+export default defineEventHandler(async (event) => {
+  const clubId = await requireClubId(event)
   const db = useDB()
 
   // Build last 6 months including current
@@ -30,7 +32,7 @@ export default defineEventHandler(async () => {
     roleId: schema.ambassadors.roleId,
   })
     .from(schema.ambassadors)
-    .where(isNull(schema.ambassadors.deletedAt))
+    .where(and(isNull(schema.ambassadors.deletedAt), eq(schema.ambassadors.clubId, clubId)))
 
   const userByAmbassador = new Map<number, typeof userRows[number]>()
   for (const u of userRows) {
@@ -59,7 +61,8 @@ export default defineEventHandler(async () => {
 
   const result: Array<{ month: string; totalSales: number; totalCommission: number }> = []
   for (const month of months) {
-    const saleRows = await db.select().from(schema.sales).where(like(schema.sales.date, `${month}%`))
+    const saleRows = await db.select().from(schema.sales)
+      .where(and(like(schema.sales.date, `${month}%`), eq(schema.sales.clubId, clubId)))
     const sales = saleRows.map(s => ({
       id: s.id,
       date: s.date,

@@ -4,6 +4,7 @@ import { derivePayoutTotals, buildSummaryHtml, buildPayslipHtml, type PayoutPdfC
 const baseCtx = (over: Partial<PayoutPdfContext['totals']> = {}): PayoutPdfContext => ({
   payout: { id: 1, periodMonth: '2026-04', amount: '2100.00', paidAt: null, snapshotBonusRate: '1.00' },
   ambassador: { name: 'Mok', fullName: 'Mok T.', ic: null, bankName: null },
+  club: { id: 1, name: 'Nono Club' },
   settings: {},
   rows: [{ date: '2026-04-05', type: 'Table', tableNumber: 'L1', amount: 20000, commissionRate: 8, commission: 1600 }],
   totals: { gross: 20000, commission: 1600, extra: 500, total: 2100, ...over },

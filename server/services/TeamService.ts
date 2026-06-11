@@ -12,14 +12,14 @@ function assertAdminTier(actor: Actor & { tier?: string }) {
 }
 
 export const TeamService = {
-  async list(actor: Actor & { tier?: string }) {
+  async list(actor: Actor & { tier?: string }, clubId?: number) {
     assertAdminTier(actor)
-    return TeamRepo.list()
+    return TeamRepo.list(clubId)
   },
-  async create(actor: Actor & { tier?: string }, body: unknown) {
+  async create(actor: Actor & { tier?: string }, clubId: number, body: unknown) {
     assertAdminTier(actor)
     const v = NameSchema.parse(body)
-    const r = await TeamRepo.insert({ name: v.name })
+    const r = await TeamRepo.insert({ name: v.name, clubId })
     return await TeamRepo.findById((r as any)[0].insertId)
   },
   async update(actor: Actor & { tier?: string }, id: number, body: unknown) {

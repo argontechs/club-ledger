@@ -27,16 +27,17 @@ export const SaleService = {
     return s
   },
 
-  async create(actor: Actor & { id: number; roleName: string; tier?: string }, body: unknown) {
+  async create(actor: Actor & { id: number; roleName: string; tier?: string }, clubId: number, body: unknown) {
     if ((actor as any).tier !== 'admin') {
       throw ApiError.forbidden('Insufficient role')
     }
     const v = CreateSchema.parse(body)
     const amb = await AmbassadorRepo.findById(v.ambassadorId)
     if (!amb || amb.deletedAt) throw ApiError.validation({ ambassadorId: 'Unknown ambassador' })
+    if (amb.clubId !== clubId) throw ApiError.validation({ ambassadorId: 'Ambassador belongs to a different club' })
     await assertNotOwnerProtected(actor, { kind: 'sale', ambassadorId: v.ambassadorId })
     const r = await SaleRepo.insert({
-      date: v.date, ambassadorId: v.ambassadorId, type: v.type,
+      date: v.date, ambassadorId: v.ambassadorId, clubId, type: v.type,
       amount: v.amount.toFixed(2), notes: v.notes ?? null,
       tableNumber: v.tableNumber ?? null, externalOrderId: v.externalOrderId ?? null,
       status: 'draft', createdBy: actor.id,
@@ -54,7 +55,12 @@ export const SaleService = {
     const v = UpdateSchema.parse(body)
     const patch: Record<string, unknown> = {}
     if (v.date) patch.date = v.date
-    if (v.ambassadorId) patch.ambassadorId = v.ambassadorId
+    if (v.ambassadorId) {
+      const amb = await AmbassadorRepo.findById(v.ambassadorId)
+      if (!amb || amb.deletedAt) throw ApiError.validation({ ambassadorId: 'Unknown ambassador' })
+      if (amb.clubId !== s.clubId) throw ApiError.validation({ ambassadorId: 'Ambassador belongs to a different club' })
+      patch.ambassadorId = v.ambassadorId
+    }
     if (v.type) patch.type = v.type
     if (v.amount !== undefined) patch.amount = v.amount.toFixed(2)
     if (v.notes !== undefined) patch.notes = v.notes
@@ -94,7 +100,7 @@ export const SaleService = {
     return await this.get(id)
   },
 
-  async confirmDrafts(actor: Actor, filter: { ambassadorId?: number; month?: string }) {
+  async confirmDrafts(actor: Actor, filter: { clubId?: number; ambassadorId?: number; month?: string }) {
     const all = await SaleRepo.list({ ...filter, status: 'draft' })
     let confirmed = 0
     let failed = 0

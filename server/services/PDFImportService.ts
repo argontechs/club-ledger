@@ -88,10 +88,10 @@ const CommitSchema = z.object({
 })
 
 export const PDFImportService = {
-  async dryRun(buf: Buffer) {
+  async dryRun(clubId: number, buf: Buffer) {
     const r = await parsePdfBuffer(buf)
     const orderIds = r.rows.map(x => x.externalOrderId)
-    const dups = await SaleRepo.findByExternalOrderIds(orderIds)
+    const dups = await SaleRepo.findByExternalOrderIds(clubId, orderIds)
     const dupSet = new Set(dups.map(d => d.externalOrderId))
     return {
       ambassadorHint: r.ambassadorHint,
@@ -102,7 +102,7 @@ export const PDFImportService = {
     }
   },
 
-  async commit(actor: Actor & { id: number; tier?: string }, body: unknown) {
+  async commit(actor: Actor & { id: number; tier?: string }, clubId: number, body: unknown) {
     if ((actor as any).tier !== 'admin') {
       throw ApiError.forbidden('Insufficient role')
     }
@@ -123,6 +123,9 @@ export const PDFImportService = {
       if (!amb || amb.deletedAt) {
         throw ApiError.validation({ rows: `Unknown ambassador (id=${id})` })
       }
+      if (amb.clubId !== clubId) {
+        throw ApiError.validation({ rows: `Ambassador (id=${id}) belongs to a different club` })
+      }
       await assertNotOwnerProtected(actor, { kind: 'sale', ambassadorId: id })
       ambassadors.set(id, amb)
     }
@@ -136,7 +139,7 @@ export const PDFImportService = {
       rolesById.set(amb.roleId, role)
     }
 
-    const existing = await SaleRepo.findByExternalOrderIds(v.rows.map(r => r.externalOrderId))
+    const existing = await SaleRepo.findByExternalOrderIds(clubId, v.rows.map(r => r.externalOrderId))
     const existingSet = new Set(existing.map(e => e.externalOrderId))
     const toInsert = v.rows.filter(r => !existingSet.has(r.externalOrderId))
 
@@ -148,6 +151,7 @@ export const PDFImportService = {
       return {
         date: r.date,
         ambassadorId: r.ambassadorId,
+        clubId,
         type: 'Table' as const,
         amount: r.amount.toFixed(2),
         notes: null,

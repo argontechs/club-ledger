@@ -1,3 +1,6 @@
 import { PayoutService } from '~~/server/services/PayoutService'
-export default defineEventHandler(async (event) =>
-  PayoutService.createBatch(event.context.user! as any, await readBody(event)))
+import { requireClubId } from '~~/server/utils/club'
+export default defineEventHandler(async (event) => {
+  const clubId = await requireClubId(event)
+  return PayoutService.createBatch(event.context.user! as any, clubId, await readBody(event))
+})

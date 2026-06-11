@@ -90,7 +90,7 @@ export function computeCommissions(input: {
 
 function round2(n: number) { return Math.round(n * 100) / 100 }
 
-export async function loadCommissions(month: string): Promise<CommissionRow[]> {
+export async function loadCommissions(clubId: number, month: string): Promise<CommissionRow[]> {
   const db = useDB()
   const roleRows = await db.select().from(schema.roles)
 
@@ -106,9 +106,10 @@ export async function loadCommissions(month: string): Promise<CommissionRow[]> {
     roleId: schema.ambassadors.roleId,
   })
     .from(schema.ambassadors)
-    .where(isNull(schema.ambassadors.deletedAt))
+    .where(and(isNull(schema.ambassadors.deletedAt), eq(schema.ambassadors.clubId, clubId)))
 
-  const saleRows = await db.select().from(schema.sales).where(like(schema.sales.date, `${month}%`))
+  const saleRows = await db.select().from(schema.sales)
+    .where(and(like(schema.sales.date, `${month}%`), eq(schema.sales.clubId, clubId)))
 
   const userByAmbassador = new Map<number, typeof userRows[number]>()
   for (const u of userRows) {

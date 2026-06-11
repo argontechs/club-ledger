@@ -19,7 +19,12 @@ async function main() {
   const johnny = (await db.select().from(schema.users).where(eq(schema.users.email, 'johnny@nonoclub.local')))[0]
   if (!johnny) throw new Error('Base seed missing — run `pnpm db:seed` first.')
 
-  const roles = await db.select().from(schema.roles)
+  const club = (await db.select().from(schema.clubs))[0]
+  if (!club) throw new Error('No club found — run `pnpm db:seed` first.')
+  const clubId = club.id
+
+  // Commission roles are club-scoped
+  const roles = (await db.select().from(schema.roles)).filter(r => r.clubId === clubId)
   const ambRole = roles.find(r => r.name === 'ambassador')!
   const leaderRole = roles.find(r => r.name === 'leader')!
 
@@ -33,6 +38,7 @@ async function main() {
       kpiThreshold: '30000.00',
       requiresKpi: 1,
       isSystem: 0,
+      clubId,
     })
     vipRole = (await db.select().from(schema.roles).where(eq(schema.roles.name, 'VIP Ambassador')))[0]
   }
@@ -56,7 +62,7 @@ async function main() {
   type AmbWithRole = { id: number; name: string; baseRate: string; bonusRate: string | null }
   const created: AmbWithRole[] = []
   for (const a of ambSpecs) {
-    const r = await db.insert(schema.ambassadors).values({ name: a.name, roleId: a.roleId })
+    const r = await db.insert(schema.ambassadors).values({ name: a.name, roleId: a.roleId, clubId })
     const role = roles.find(rr => rr.id === a.roleId) ?? vipRole!
     created.push({
       id: (r as any)[0].insertId,
@@ -95,6 +101,7 @@ async function main() {
       salesRows.push({
         date,
         ambassadorId: amb.id,
+        clubId,
         type,
         amount: randAmount(type),
         status: 'confirmed',

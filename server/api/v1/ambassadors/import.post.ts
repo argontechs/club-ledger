@@ -2,10 +2,5 @@ import { AmbassadorService } from '~~/server/services/AmbassadorService'
 import { requireClubId } from '~~/server/utils/club'
 export default defineEventHandler(async (event) => {
   const clubId = await requireClubId(event)
-  const q = getQuery(event)
-  return await AmbassadorService.list(event.context.user! as any, {
-    clubId,
-    teamId: q.team_id ? Number(q.team_id) : undefined,
-    includeDeleted: q.include_deleted === 'true',
-  })
+  return await AmbassadorService.importFromClub(event.context.user! as any, clubId, await readBody(event))
 })

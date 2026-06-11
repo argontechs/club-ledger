@@ -2,13 +2,14 @@ import { and, eq, isNull } from 'drizzle-orm'
 import { useDB, schema } from '~~/server/db/client'
 
 export const TeamRepo = {
-  list() {
-    return useDB().select().from(schema.teams).where(isNull(schema.teams.deletedAt))
+  list(clubId?: number) {
+    const where = [isNull(schema.teams.deletedAt), ...(clubId !== undefined ? [eq(schema.teams.clubId, clubId)] : [])]
+    return useDB().select().from(schema.teams).where(and(...where))
   },
   findById(id: number) {
     return useDB().select().from(schema.teams).where(eq(schema.teams.id, id)).limit(1).then(r => r[0])
   },
-  insert(values: { name: string }) {
+  insert(values: { name: string; clubId: number }) {
     return useDB().insert(schema.teams).values(values)
   },
   update(id: number, patch: { name?: string }) {

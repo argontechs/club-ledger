@@ -1,12 +1,14 @@
 import { eq, and, like, isNull, sql } from 'drizzle-orm'
 import { useDB, schema } from '~~/server/db/client'
 import { ApiError } from '~~/server/utils/errors'
+import { requireClubId } from '~~/server/utils/club'
 
 export default defineEventHandler(async (event) => {
   const q = getQuery(event)
   const month = String(q.month || '')
   if (!/^\d{4}-\d{2}$/.test(month)) throw ApiError.validation({ month: 'expected YYYY-MM' })
   const type = q.type as 'Table' | 'BGO' | 'all' | undefined
+  const clubId = await requireClubId(event)
 
   const db = useDB()
   const where = [
@@ -22,7 +24,7 @@ export default defineEventHandler(async (event) => {
   })
     .from(schema.ambassadors)
     .leftJoin(schema.sales, and(eq(schema.sales.ambassadorId, schema.ambassadors.id), ...where))
-    .where(isNull(schema.ambassadors.deletedAt))
+    .where(and(isNull(schema.ambassadors.deletedAt), eq(schema.ambassadors.clubId, clubId)))
     .groupBy(schema.ambassadors.id, schema.ambassadors.name)
 
   return rows

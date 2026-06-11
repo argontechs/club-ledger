@@ -17,12 +17,12 @@ const admin = { id: 1, roleName: 'admin', tier: 'admin' } as any
 
 describe('TeamService guards', () => {
   it('rejects non-admin on list/create/update/remove', async () => {
-    await expect(TeamService.list(nonAdmin)).rejects.toMatchObject({ statusCode: 403 })
-    await expect(TeamService.create(nonAdmin, { name: 'N' })).rejects.toMatchObject({ statusCode: 403 })
+    await expect(TeamService.list(nonAdmin, 1)).rejects.toMatchObject({ statusCode: 403 })
+    await expect(TeamService.create(nonAdmin, 1, { name: 'N' })).rejects.toMatchObject({ statusCode: 403 })
     await expect(TeamService.update(nonAdmin, 1, { name: 'N' })).rejects.toMatchObject({ statusCode: 403 })
     await expect(TeamService.remove(nonAdmin, 1)).rejects.toMatchObject({ statusCode: 403 })
   })
   it('admin passes through', async () => {
-    await expect(TeamService.create(admin, { name: 'N' })).resolves.toBeTruthy()
+    await expect(TeamService.create(admin, 1, { name: 'N' })).resolves.toBeTruthy()
   })
 })

@@ -14,6 +14,7 @@ function escapeHtml(s: string) {
 export interface PayoutPdfContext {
   payout: any
   ambassador: any
+  club: any
   settings: Record<string, string>
   rows: Array<{ date: string; type: string; tableNumber: string | null; amount: number; commissionRate: number; commission: number }>
   totals: { gross: number; commission: number; extra: number; total: number }
@@ -35,6 +36,7 @@ async function loadContext(payoutId: number): Promise<PayoutPdfContext> {
   const [payout] = await db.select().from(schema.payouts).where(eq(schema.payouts.id, payoutId))
   if (!payout) throw new Error('Payout not found')
   const [ambassador] = await db.select().from(schema.ambassadors).where(eq(schema.ambassadors.id, payout.ambassadorId))
+  const [club] = await db.select().from(schema.clubs).where(eq(schema.clubs.id, payout.clubId))
   const settings = await SettingsService.getAll()
   const month = payout.periodMonth
   // Sales for this ambassador in this month
@@ -52,7 +54,7 @@ async function loadContext(payoutId: number): Promise<PayoutPdfContext> {
   const commission = rows.reduce((a, r) => a + r.commission, 0)
   const { commission: c, extra, total } = derivePayoutTotals(Number(payout.amount), commission)
   return {
-    payout, ambassador, settings, rows,
+    payout, ambassador, club: club ?? null, settings, rows,
     totals: { gross, commission: c, extra, total },
   }
 }
@@ -100,6 +102,7 @@ export function buildSummaryHtml(ctx: PayoutPdfContext): string {
     <div class="meta-grid">
       <span class="label">Ambassador:</span><span>${escapeHtml(ambassador.fullName ?? ambassador.name)}</span>
       <span class="label">Alias:</span><span>${escapeHtml(ambassador.name)}</span>
+      ${ctx.club ? `<span class="label">Club:</span><span>${escapeHtml(ctx.club.name)}</span>` : ''}
       <span class="label">Period:</span><span>${escapeHtml(payout.periodMonth)}</span>
       <span class="label">Status:</span><span>${payout.paidAt ? 'Paid on ' + new Date(payout.paidAt).toLocaleDateString('en-GB') : 'Unpaid'}</span>
     </div>
@@ -153,6 +156,7 @@ export function buildPayslipHtml(ctx: PayoutPdfContext): string {
     <div class="meta-grid">
       <span class="label">Ambassador:</span><span>${escapeHtml(ambassador.fullName ?? ambassador.name)}</span>
       <span class="label">IC / Passport:</span><span>${escapeHtml(ambassador.ic ?? '-')}</span>
+      ${ctx.club ? `<span class="label">Club:</span><span>${escapeHtml(ctx.club.name)}</span>` : ''}
       <span class="label">Period:</span><span>${escapeHtml(payout.periodMonth)}</span>
       <span class="label">Issued:</span><span>${new Date().toLocaleDateString('en-GB')}</span>
     </div>

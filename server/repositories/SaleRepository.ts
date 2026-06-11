@@ -3,9 +3,10 @@ import { useDB, schema } from '~~/server/db/client'
 import type { NewSale } from '~~/server/db/schema'
 
 export const SaleRepo = {
-  list(filter: { month?: string; ambassadorId?: number; type?: 'Table' | 'BGO'; status?: 'draft' | 'confirmed' | 'voided' } = {}) {
+  list(filter: { clubId?: number; month?: string; ambassadorId?: number; type?: 'Table' | 'BGO'; status?: 'draft' | 'confirmed' | 'voided' } = {}) {
     const db = useDB()
     const where = []
+    if (filter.clubId) where.push(eq(schema.sales.clubId, filter.clubId))
     if (filter.month) where.push(like(schema.sales.date, `${filter.month}%`))
     if (filter.ambassadorId) where.push(eq(schema.sales.ambassadorId, filter.ambassadorId))
     if (filter.type) where.push(eq(schema.sales.type, filter.type))
@@ -25,17 +26,21 @@ export const SaleRepo = {
   update(id: number, patch: Partial<NewSale>) {
     return useDB().update(schema.sales).set({ ...patch, updatedAt: new Date() }).where(eq(schema.sales.id, id))
   },
-  totalForMonth(month: string) {
+  totalForMonth(clubId: number, month: string) {
     return useDB().select({
       total: sql<string>`COALESCE(SUM(amount), 0)`.as('total'),
     }).from(schema.sales)
-      .where(and(eq(schema.sales.status, 'confirmed'), like(schema.sales.date, `${month}%`)))
+      .where(and(eq(schema.sales.clubId, clubId), eq(schema.sales.status, 'confirmed'), like(schema.sales.date, `${month}%`)))
       .then(r => Number(r[0]?.total ?? 0))
   },
-  findByExternalOrderIds(orderIds: string[]) {
+  // Dedupe is per club: different clubs may run POS vendors with overlapping order-id spaces.
+  findByExternalOrderIds(clubId: number, orderIds: string[]) {
     if (orderIds.length === 0) return Promise.resolve([])
     return useDB().select({ id: schema.sales.id, externalOrderId: schema.sales.externalOrderId })
       .from(schema.sales)
-      .where(sql`${schema.sales.externalOrderId} IN (${sql.join(orderIds.map(id => sql`${id}`), sql`, `)})`)
+      .where(and(
+        eq(schema.sales.clubId, clubId),
+        sql`${schema.sales.externalOrderId} IN (${sql.join(orderIds.map(id => sql`${id}`), sql`, `)})`,
+      ))
   },
 }

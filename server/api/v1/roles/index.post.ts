@@ -1,5 +1,6 @@
 import { RoleService } from '~~/server/services/RoleService'
+import { requireClubId } from '~~/server/utils/club'
 export default defineEventHandler(async (event) => {
-  const actor = event.context.user!
-  return await RoleService.create(actor as any, await readBody(event))
+  const clubId = await requireClubId(event)
+  return await RoleService.create(event.context.user! as any, clubId, await readBody(event))
 })

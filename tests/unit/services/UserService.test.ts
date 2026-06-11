@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 
-const mockState: { roleRow: any } = { roleRow: { id: 2, name: 'owner' } }
+const mockState: { roleRow: any } = { roleRow: { id: 2, name: 'owner', clubId: null } }
 vi.mock('~~/server/db/client', () => ({
   useDB: () => ({
     select: () => ({

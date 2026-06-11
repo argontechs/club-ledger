@@ -24,9 +24,12 @@ function assertAdminTier(actor: Actor & { tier?: string }) {
 
 export const PayoutService = {
   list: PayoutRepo.list,
-  async create(actor: Actor & { id: number; roleName: string }, body: unknown) {
+  async create(actor: Actor & { id: number; roleName: string }, clubId: number, body: unknown) {
     assertAdminTier(actor)
     const v = CreateSchema.parse(body)
+    const amb = await AmbassadorRepo.findById(v.ambassadorId)
+    if (!amb || amb.deletedAt) throw ApiError.validation({ ambassadorId: 'Unknown ambassador' })
+    if (amb.clubId !== clubId) throw ApiError.validation({ ambassadorId: 'Ambassador belongs to a different club' })
     await assertNotOwnerProtected(actor, { kind: 'payout', ambassadorId: v.ambassadorId })
     const dups = await PayoutRepo.list({ ambassadorId: v.ambassadorId, month: v.periodMonth })
     if (dups.length > 0) {
@@ -34,6 +37,7 @@ export const PayoutService = {
     }
     const r = await PayoutRepo.insert({
       ambassadorId: v.ambassadorId,
+      clubId,
       periodMonth: v.periodMonth,
       amount: v.amount.toFixed(2),
       notes: v.notes ?? null,
@@ -113,7 +117,7 @@ export const PayoutService = {
     await PayoutRepo.update(id, { receiptPaths: arr as any })
   },
 
-  async createBatch(actor: Actor & { id: number }, body: unknown) {
+  async createBatch(actor: Actor & { id: number }, clubId: number, body: unknown) {
     const Schema = z.object({
       items: z.array(z.object({
         ambassadorId: z.number().int().positive(),
@@ -127,6 +131,7 @@ export const PayoutService = {
 
     // Single source of truth: amounts come from computeCommissions, the same
     // engine the commissions page uses. Loaded once, computed once per month.
+    // All inputs are scoped to the club: the pool bonus is the CLUB's pool.
     const roleRows = await RoleRepo.list()
     const roleById = new Map(roleRows.map(r => [r.id, r]))
     const roleConfigs: CommissionRoleConfig[] = roleRows.map(r => ({
@@ -136,11 +141,11 @@ export const PayoutService = {
       requiresKpi: r.requiresKpi === 1,
       kpiThreshold: r.kpiThreshold === null ? null : Number(r.kpiThreshold),
     }))
-    const ambRows = await AmbassadorRepo.list()
+    const ambRows = await AmbassadorRepo.list({ clubId })
     const months = Array.from(new Set(v.items.map(i => i.periodMonth)))
 
     for (const month of months) {
-      const saleRows = await SaleRepo.list({ month })
+      const saleRows = await SaleRepo.list({ clubId, month })
       const rows = computeCommissions({
         month,
         roles: roleConfigs,
@@ -161,7 +166,7 @@ export const PayoutService = {
         if (!row) continue // unknown or deleted ambassador
         const role = roleById.get(row.roleId)!
         const r = await PayoutRepo.insert({
-          ambassadorId: item.ambassadorId, periodMonth: item.periodMonth,
+          ambassadorId: item.ambassadorId, clubId, periodMonth: item.periodMonth,
           amount: row.total.toFixed(2), notes: null, createdBy: actor.id,
           paidAt: v.markPaid ? new Date() : null,
           snapshotBonusRate: role.bonusRate ?? null,
