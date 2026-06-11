@@ -103,10 +103,11 @@ describe('import parser registry', () => {
     expect(r.errors.some(e => /AMT ORD total/.test(e))).toBe(true)
   })
 
-  it('club404 parser: an unclassified row cannot mask a provable misclassification elsewhere', () => {
-    // Page 1 classifies two rows as Table; page 2 (no headers) leaves one
-    // RM 640 row unclassified. The printed BGO total of RM 818 exceeds what
-    // the unclassified row could possibly contribute — must still error.
+  it('club404 parser: continuation pages without headers inherit the column map', () => {
+    // Real multi-page statements drop the header row on continuation pages
+    // (JOHNNY.pdf May 2026: 9 receipts on page 2, no headers). Page 2's rows
+    // classify using page 1's column geometry: one under AMT ORD, one under
+    // BGO SALES.
     const item = (str: string, x: number, y: number, w = 24) => ({ str, x, y, w })
     const pages: PositionedPage[] = [
       {
@@ -119,18 +120,40 @@ describe('import parser registry', () => {
           item('758.00', 435, 634, 25),
         ],
       },
-      { items: [item('A00101202604050020', 178, 700, 75), item('640.00', 435, 700, 25)] },
+      {
+        items: [
+          item('A00101202604050020', 178, 700, 75),
+          item('640.00', 435, 700, 25),
+          item('A00101202604050021', 178, 688, 75),
+          item('500.00', 352, 688, 25),
+        ],
+      },
     ]
     const text = C404_TEXT
       .replace(' TOTAL RM - RM 1,576.00 RM 173.36',
-        ' 5 Apr 2026 2026-04-05 11:10 PM A00101202604050020 Tester(QQ) K01 RM 640.00 11.00% RM 70.40 TOTAL RM 818.00 RM 1,398.00 RM 243.36')
+        ' 5 Apr 2026 2026-04-05 11:10 PM A00101202604050020 Tester(QQ) K01 RM 640.00 11.00% RM 70.40'
+        + ' 5 Apr 2026 2026-04-05 11:40 PM A00101202604050021 Tester(QQ) K02 RM 500.00 11.00% RM 55.00'
+        + ' TOTAL RM 500.00 RM 2,216.00 RM 298.36')
     const r = club404AgentParser.parse(norm(text), text, pages)
-    expect(r.rows).toHaveLength(3)
-    expect(r.rows.filter(x => x.saleType === undefined)).toHaveLength(1)
-    // Both the unclassified warning AND the reconciliation errors fire
-    expect(r.errors.some(e => /column position for 1 row/.test(e))).toBe(true)
-    expect(r.errors.some(e => /BGO SALES total/.test(e))).toBe(true)
-    expect(r.errors.some(e => /AMT ORD total/.test(e))).toBe(true)
+    expect(r.rows).toHaveLength(4)
+    expect(r.rows.filter(x => x.saleType === undefined)).toHaveLength(0)
+    expect(r.rows.find(x => x.externalOrderId === 'A00101202604050020')!.saleType).toBe('Table')
+    expect(r.rows.find(x => x.externalOrderId === 'A00101202604050021')!.saleType).toBe('BGO')
+    // Per-column totals reconcile (BGO 500; AMT 818+758+640=2216) → clean
+    expect(r.errors).toHaveLength(0)
+  })
+
+  it('club404 parser: no headers on ANY page → rows unclassified with a warning, never silently typed', () => {
+    const item = (str: string, x: number, y: number, w = 24) => ({ str, x, y, w })
+    const pages: PositionedPage[] = [{
+      items: [
+        item('A00101202604020051', 178, 646, 75),
+        item('818.00', 435, 646, 25),
+      ],
+    }]
+    const r = club404AgentParser.parse(norm(C404_TEXT), C404_TEXT, pages)
+    expect(r.rows.every(x => x.saleType === undefined)).toBe(true)
+    expect(r.errors.some(e => /column position/.test(e))).toBe(true)
   })
 
   it('club404 default sale type is Table (AMT ORD column); nono is Table', () => {

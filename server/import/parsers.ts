@@ -188,6 +188,20 @@ export const club404AgentParser: ImportParser = {
       receiptItems: new Map<string, PositionedItem[]>(),
       items: p.items,
     }))
+    // Continuation pages drop the header row but keep the same column
+    // geometry (same generator) — inherit the nearest headered page's column
+    // map in both directions. The per-column total reconciliation below
+    // still objects loudly if the inherited geometry turns out to be wrong.
+    let carry: { bgo: number; amt: number } | null = null
+    for (const ctx of pageCtx) {
+      if (ctx.cols) carry = ctx.cols
+      else ctx.cols = carry
+    }
+    carry = null
+    for (let i = pageCtx.length - 1; i >= 0; i--) {
+      if (pageCtx[i]!.cols) carry = pageCtx[i]!.cols
+      else pageCtx[i]!.cols = carry
+    }
     for (const ctx of pageCtx) {
       for (const it of ctx.items) {
         const key = it.str.trim()
