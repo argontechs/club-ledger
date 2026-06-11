@@ -1,6 +1,6 @@
 # ClubLedger
 
-Sales-tracking and commission-management system for nightlife sales/marketing companies. Multi-club, white-label, deployed **one instance per operator company** — each company runs its own ClubLedger with its own clubs, ambassadors, rate plans, and branding. (First production instance: Nono Club, Malaysia.)
+Sales-tracking and commission-management system for nightlife sales/marketing companies. Multi-club, white-label, deployed **one instance per operator company** — each company runs its own ClubLedger with its own clubs, ambassadors, rate plans, and branding. (First production instance: 9 Degrees, Malaysia.)
 
 Single full-stack Nuxt 4 application — SPA frontend + Nitro server routes + Drizzle ORM + MySQL — designed to deploy as one Node service on CloudPanel.
 
