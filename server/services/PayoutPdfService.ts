@@ -197,6 +197,108 @@ export function buildPayslipHtml(ctx: PayoutPdfContext): string {
   </body></html>`
 }
 
+// ----- Date-range commission report (weekly submissions etc.) -----------
+// Base commissions only, from per-sale FROZEN rates. Monthly bonuses (pool /
+// KPI) are settled at month close and are intentionally excluded — the report
+// says so.
+
+export interface RangeReportRow {
+  ambassadorId: number
+  name: string
+  saleCount: number
+  gross: number
+  commission: number
+}
+
+export function computeRangeReport(
+  sales: ReadonlyArray<{ ambassadorId: number; amount: string; confirmedCommissionRate: string | null }>,
+  namesById: ReadonlyMap<number, string>,
+): { rows: RangeReportRow[]; totals: { saleCount: number; gross: number; commission: number } } {
+  const r2 = (n: number) => Math.round(n * 100) / 100
+  const byAmb = new Map<number, RangeReportRow>()
+  for (const s of sales) {
+    const row = byAmb.get(s.ambassadorId) ?? {
+      ambassadorId: s.ambassadorId,
+      name: namesById.get(s.ambassadorId) ?? `#${s.ambassadorId}`,
+      saleCount: 0, gross: 0, commission: 0,
+    }
+    row.saleCount += 1
+    row.gross += Number(s.amount)
+    row.commission += Number(s.amount) * Number(s.confirmedCommissionRate ?? 0) / 100
+    byAmb.set(s.ambassadorId, row)
+  }
+  const rows = Array.from(byAmb.values())
+    .map(r => ({ ...r, gross: r2(r.gross), commission: r2(r.commission) }))
+    .sort((a, b) => b.gross - a.gross)
+  return {
+    rows,
+    totals: {
+      saleCount: rows.reduce((a, r) => a + r.saleCount, 0),
+      gross: r2(rows.reduce((a, r) => a + r.gross, 0)),
+      commission: r2(rows.reduce((a, r) => a + r.commission, 0)),
+    },
+  }
+}
+
+export function buildRangeReportHtml(input: {
+  clubName: string
+  from: string
+  to: string
+  settings: Record<string, string>
+  rows: RangeReportRow[]
+  totals: { saleCount: number; gross: number; commission: number }
+}): string {
+  const l = labels(input.settings)
+  return `<!doctype html><html><head><meta charset="utf-8"><style>${baseStyles}</style></head><body>
+    ${header(input.settings)}
+    <h2 style="margin-top:0">Commission report</h2>
+    <div class="meta-grid">
+      <span class="label">Club:</span><span>${escapeHtml(input.clubName)}</span>
+      <span class="label">Period:</span><span>${escapeHtml(input.from)} — ${escapeHtml(input.to)}</span>
+    </div>
+    <table>
+      <thead><tr>
+        <th>Ambassador</th><th class="right">Sales</th>
+        <th class="right">Gross (${escapeHtml(l.currency)})</th>
+        <th class="right">Commission (${escapeHtml(l.currency)})</th>
+      </tr></thead>
+      <tbody>
+        ${input.rows.map(r => `<tr>
+          <td>${escapeHtml(r.name)}</td>
+          <td class="right">${r.saleCount}</td>
+          <td class="right">${fmt(r.gross)}</td>
+          <td class="right">${fmt(r.commission)}</td>
+        </tr>`).join('')}
+        ${input.rows.length === 0 ? '<tr><td colspan="4" style="text-align:center;padding:24px;color:#aaa">No confirmed sales in this period</td></tr>' : ''}
+        <tr class="total-row">
+          <td>Total</td>
+          <td class="right">${input.totals.saleCount}</td>
+          <td class="right">${fmt(input.totals.gross)}</td>
+          <td class="right">${fmt(input.totals.commission)}</td>
+        </tr>
+      </tbody>
+    </table>
+    <p style="margin-top:16px;font-size:10px;color:#aaa">
+      Base commissions at each sale's confirmed (frozen) rate. Monthly bonuses are settled at month close and are not included here.
+    </p>
+  </body></html>`
+}
+
+export async function generateRangeReport(clubId: number, from: string, to: string): Promise<{ filename: string; pdf: Buffer }> {
+  const db = useDB()
+  const [club] = await db.select().from(schema.clubs).where(eq(schema.clubs.id, clubId))
+  const settings = await SettingsService.getAll()
+  const { SaleRepo } = await import('~~/server/repositories/SaleRepository')
+  const sales = await SaleRepo.listConfirmedRange(clubId, from, to)
+  const ambs = await db.select({ id: schema.ambassadors.id, name: schema.ambassadors.name }).from(schema.ambassadors)
+  const namesById = new Map(ambs.map(a => [a.id, a.name]))
+  const { rows, totals } = computeRangeReport(sales, namesById)
+  const html = buildRangeReportHtml({ clubName: club?.name ?? '', from, to, settings, rows, totals })
+  const pdf = await htmlToPdf(html)
+  const slug = (club?.name ?? 'club').replace(/[^\w]/g, '_')
+  return { filename: `${from}_to_${to}_COMM_REPORT_${slug}.pdf`, pdf }
+}
+
 export async function generatePayslip(payoutId: number): Promise<{ filename: string; pdf: Buffer }> {
   const ctx = await loadContext(payoutId)
   const pdf = await htmlToPdf(buildPayslipHtml(ctx))

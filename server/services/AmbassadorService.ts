@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { AmbassadorRepo } from '~~/server/repositories/AmbassadorRepository'
 import { RoleRepo } from '~~/server/repositories/RoleRepository'
 import { ApiError } from '~~/server/utils/errors'
-import { assertNotOwnerProtected, type Actor } from '~~/server/utils/permissions'
+import { assertNotOwnerProtected, assertCan, type Actor } from '~~/server/utils/permissions'
 
 const CreateSchema = z.object({
   name: z.string().min(1).max(120),
@@ -54,9 +54,7 @@ export const AmbassadorService = {
   },
 
   async create(actor: Actor & { tier?: string }, clubId: number, body: unknown) {
-    if ((actor as any).tier !== 'admin') {
-      throw ApiError.forbidden('Insufficient role')
-    }
+    assertCan(actor, 'ambassadors', 'edit')
     const v = parseOrThrow(CreateSchema, body)
     await assertClubRole(v.roleId, clubId)
     const r = await AmbassadorRepo.insert({
@@ -76,9 +74,7 @@ export const AmbassadorService = {
   // Cross-club import: copies identity + bank details into the current club.
   // Copies are independent records — each club's ledger stays self-contained.
   async importFromClub(actor: Actor & { tier?: string }, clubId: number, body: unknown) {
-    if ((actor as any).tier !== 'admin') {
-      throw ApiError.forbidden('Insufficient role')
-    }
+    assertCan(actor, 'ambassadors', 'edit')
     const v = parseOrThrow(z.object({
       sourceAmbassadorIds: z.array(z.number().int().positive()).min(1).max(100),
       roleId: z.number().int().positive(),
@@ -120,9 +116,7 @@ export const AmbassadorService = {
   },
 
   async update(actor: Actor & { roleName: string; tier?: string }, clubId: number, id: number, body: unknown) {
-    if ((actor as any).tier !== 'admin') {
-      throw ApiError.forbidden('Insufficient role')
-    }
+    assertCan(actor, 'ambassadors', 'edit')
     const a = await AmbassadorRepo.findById(id)
     if (!a || a.clubId !== clubId) throw ApiError.notFound('Ambassador')
     await assertNotOwnerProtected(actor, { kind: 'ambassador', ambassadorId: id })
@@ -144,9 +138,7 @@ export const AmbassadorService = {
   },
 
   async remove(actor: Actor & { tier?: string }, clubId: number, id: number) {
-    if ((actor as any).tier !== 'admin') {
-      throw ApiError.forbidden('Insufficient role')
-    }
+    assertCan(actor, 'ambassadors', 'edit')
     const a = await AmbassadorRepo.findById(id)
     if (!a || a.clubId !== clubId) throw ApiError.notFound('Ambassador')
     await assertNotOwnerProtected(actor, { kind: 'ambassador', ambassadorId: id })

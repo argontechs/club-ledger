@@ -1,9 +1,11 @@
+import { assertCan } from '~~/server/utils/permissions'
 import { eq, and, like, isNull } from 'drizzle-orm'
 import { useDB, schema } from '~~/server/db/client'
 import { ApiError } from '~~/server/utils/errors'
 import { requireClubId } from '~~/server/utils/club'
 
 export default defineEventHandler(async (event) => {
+  assertCan(event.context.user! as any, 'commissions', 'view')
   const userId = Number(getRouterParam(event, 'user_id'))
   const month = String(getQuery(event).month || '')
   if (!/^\d{4}-\d{2}$/.test(month)) throw ApiError.validation({ month: 'expected YYYY-MM' })

@@ -1,6 +1,8 @@
+import { assertCan } from '~~/server/utils/permissions'
 import { PayoutService } from '~~/server/services/PayoutService'
 import { requireClubId } from '~~/server/utils/club'
 export default defineEventHandler(async (event) => {
+  assertCan(event.context.user! as any, 'payouts', 'view')
   const clubId = await requireClubId(event)
   const id = Number(getRouterParam(event, 'id'))
   const index = Number(getRouterParam(event, 'index'))

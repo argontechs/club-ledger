@@ -14,9 +14,17 @@ vi.mock('~~/server/repositories/AmbassadorRepository', () => ({
 vi.mock('~~/server/repositories/RoleRepository', () => ({
   RoleRepo: { findById: vi.fn(async () => ({ id: 3 })) },
 }))
-vi.mock('~~/server/utils/permissions', () => ({
-  assertNotOwnerProtected: vi.fn(async () => undefined),
-}))
+vi.mock('~~/server/utils/permissions', async () => {
+  const { can } = await import('~~/shared/permissions')
+  return {
+    assertNotOwnerProtected: vi.fn(async () => undefined),
+    assertCan: (actor: any, module: any, level: any) => {
+      if (!can(actor, module, level)) {
+        throw Object.assign(new Error('Insufficient permissions'), { statusCode: 403 })
+      }
+    },
+  }
+})
 
 import { AmbassadorService } from '~~/server/services/AmbassadorService'
 

@@ -34,6 +34,8 @@ export default defineEventHandler(async (event) => {
   const rows = await db.select({
     id: schema.users.id, email: schema.users.email, name: schema.users.name,
     roleId: schema.users.roleId, ambassadorId: schema.users.ambassadorId,
+    clubAccess: schema.users.clubAccess,
+    permissions: schema.users.permissions,
     roleName: schema.roles.name,
     tier: schema.roles.tier,
     isOwner: schema.roles.isOwner,

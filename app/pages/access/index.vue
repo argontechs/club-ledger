@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { useAuthStore } from '~/stores/auth'
+import { useClub } from '~/composables/useClub'
+import { PERMISSION_MODULES, MODULE_LABELS, defaultPermissions, type PermissionLevel } from '~~/shared/permissions'
 definePageMeta({ middleware: ['role'] })
 
 const auth = useAuthStore()
@@ -17,16 +19,62 @@ const showAdd = ref(false)
 const editing = ref<any | null>(null)
 const form = ref({ email: '', name: '', password: '', roleId: 0, ambassadorId: null as number | null })
 
+// --- Owner-managed access (clubs + permission matrix) ---
+const { clubs } = useClub()
+const actorIsOwner = computed(() => !!(auth.user as any)?.isOwner)
+const targetIsOwner = computed(() => !!editing.value && isOwner(editing.value))
+const showAccessControls = computed(() => actorIsOwner.value && !targetIsOwner.value)
+const allClubs = ref(true)
+const selectedClubs = ref<Set<number>>(new Set())
+const customPerms = ref(false)
+const perms = ref<Record<string, PermissionLevel>>({})
+const selectedRoleTier = computed(() => roles.value?.find(r => r.id === Number(form.value.roleId))?.tier ?? 'admin')
+
+function seedAccess(u: any | null) {
+  if (u && Array.isArray(u.clubAccess)) {
+    allClubs.value = false
+    selectedClubs.value = new Set(u.clubAccess)
+  } else {
+    allClubs.value = true
+    selectedClubs.value = new Set()
+  }
+  if (u && u.permissions && Object.keys(u.permissions).length) {
+    customPerms.value = true
+    perms.value = { ...defaultPermissions(selectedRoleTier.value), ...u.permissions }
+  } else {
+    customPerms.value = false
+    perms.value = { ...defaultPermissions(selectedRoleTier.value) }
+  }
+}
+watch([customPerms, selectedRoleTier], () => {
+  if (!customPerms.value) perms.value = { ...defaultPermissions(selectedRoleTier.value) }
+})
+function toggleClub(id: number) {
+  const s = new Set(selectedClubs.value)
+  if (s.has(id)) s.delete(id)
+  else s.add(id)
+  selectedClubs.value = s
+}
+function accessPayload() {
+  if (!showAccessControls.value) return {}
+  return {
+    clubAccess: allClubs.value ? null : Array.from(selectedClubs.value),
+    permissions: customPerms.value ? perms.value : null,
+  }
+}
+
 watch(showAdd, (v) => {
   if (v && !editing.value) {
     const defaultRoleId = roles.value?.find(r => r.name === 'admin')?.id ?? roles.value?.[0]?.id ?? 0
     form.value = { email: '', name: '', password: '', roleId: defaultRoleId, ambassadorId: null }
+    seedAccess(null)
   }
 })
 watch(editing, (v) => {
   if (v) {
     const matchedRole = roles.value?.find(r => r.name === v.role)
     form.value = { email: v.email, name: v.name, password: '', roleId: matchedRole?.id ?? 0, ambassadorId: v.ambassadorId }
+    seedAccess(v)
     showAdd.value = true
   }
 })
@@ -35,6 +83,7 @@ async function save() {
   const payload: any = {
     email: form.value.email, name: form.value.name,
     roleId: Number(form.value.roleId), ambassadorId: form.value.ambassadorId,
+    ...accessPayload(),
   }
   if (form.value.password) payload.password = form.value.password
   const wasEditing = !!editing.value
@@ -126,6 +175,55 @@ const roleTone = (r: string) => {
           label="Linked ambassador (optional)"
           :options="[{ value: '', label: '— None —' }, ...(ambassadors ?? []).map(a => ({ value: a.id, label: a.name }))]"
         />
+
+        <template v-if="showAccessControls">
+          <section class="space-y-2 pt-2 border-t border-[var(--color-border-2)]">
+            <h4 class="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Club access</h4>
+            <label class="flex items-center gap-2 text-[13px] text-[var(--color-ink)] cursor-pointer">
+              <input v-model="allClubs" type="checkbox" class="accent-[var(--color-brand)]">
+              All clubs (including ones created later)
+            </label>
+            <div v-if="!allClubs" class="grid grid-cols-2 gap-1.5 pl-1">
+              <label
+                v-for="c in clubs" :key="c.id"
+                class="flex items-center gap-2 text-[12.5px] text-[var(--color-muted)] cursor-pointer"
+              >
+                <input
+                  type="checkbox" class="accent-[var(--color-brand)]"
+                  :checked="selectedClubs.has(c.id)" @change="toggleClub(c.id)"
+                >
+                {{ c.name }}
+              </label>
+            </div>
+          </section>
+
+          <section class="space-y-2 pt-2 border-t border-[var(--color-border-2)]">
+            <h4 class="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Permissions</h4>
+            <label class="flex items-center gap-2 text-[13px] text-[var(--color-ink)] cursor-pointer">
+              <input v-model="customPerms" type="checkbox" class="accent-[var(--color-brand)]">
+              Customise (otherwise the role's defaults apply)
+            </label>
+            <div v-if="customPerms" class="space-y-1 pl-1">
+              <div
+                v-for="m in PERMISSION_MODULES" :key="m"
+                class="flex items-center justify-between gap-2 py-0.5"
+              >
+                <span class="text-[12.5px] text-[var(--color-muted)]">{{ MODULE_LABELS[m] }}</span>
+                <div class="flex rounded-lg border border-[var(--color-border-2)] overflow-hidden">
+                  <button
+                    v-for="lvl in (['none', 'view', 'edit'] as const)" :key="lvl"
+                    type="button"
+                    class="press px-2.5 py-1 text-[11px] font-medium capitalize"
+                    :class="perms[m] === lvl
+                      ? 'bg-[var(--color-ink)] text-white'
+                      : 'text-[var(--color-muted-2)] hover:bg-[var(--color-hairline)]'"
+                    @click="perms[m] = lvl"
+                  >{{ lvl }}</button>
+                </div>
+              </div>
+            </div>
+          </section>
+        </template>
       </div>
       <template #footer>
         <AppButton variant="secondary" @click="closeModal">Cancel</AppButton>

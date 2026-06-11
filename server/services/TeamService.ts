@@ -1,19 +1,17 @@
 import { z } from 'zod'
 import { TeamRepo } from '~~/server/repositories/TeamRepository'
 import { ApiError } from '~~/server/utils/errors'
-import type { Actor } from '~~/server/utils/permissions'
+import { assertCan, type Actor } from '~~/server/utils/permissions'
 
 const NameSchema = z.object({ name: z.string().min(1).max(80) })
 
 function assertAdminTier(actor: Actor & { tier?: string }) {
-  if ((actor as any).tier !== 'admin') {
-    throw ApiError.forbidden('Insufficient role')
-  }
+  assertCan(actor, 'teams', 'edit')
 }
 
 export const TeamService = {
   async list(actor: Actor & { tier?: string }, clubId?: number) {
-    assertAdminTier(actor)
+    assertCan(actor, 'teams', 'view')
     return TeamRepo.list(clubId)
   },
   async create(actor: Actor & { tier?: string }, clubId: number, body: unknown) {

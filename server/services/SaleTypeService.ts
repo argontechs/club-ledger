@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { SaleTypeRepo } from '~~/server/repositories/SaleTypeRepository'
 import { ApiError } from '~~/server/utils/errors'
-import type { Actor } from '~~/server/utils/permissions'
+import { assertCan, type Actor } from '~~/server/utils/permissions'
 
 const NameSchema = z.object({
   name: z.string().trim().min(1).max(40),
@@ -10,9 +10,7 @@ const NameSchema = z.object({
 })
 
 function assertAdminTier(actor: Actor & { tier?: string }) {
-  if ((actor as any).tier !== 'admin') {
-    throw ApiError.forbidden('Insufficient role')
-  }
+  assertCan(actor, 'sales', 'edit')
 }
 
 export const SaleTypeService = {

@@ -1,10 +1,14 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { ChevronUpDownIcon, CheckIcon, PlusIcon, BuildingStorefrontIcon } from '@heroicons/vue/24/outline'
+import { ChevronUpDownIcon, CheckIcon, PlusIcon, BuildingStorefrontIcon, Squares2X2Icon } from '@heroicons/vue/24/outline'
 import { useAuthStore } from '~/stores/auth'
 import { useClub } from '~/composables/useClub'
 import { useAPIMutation } from '~/composables/useAPIMutation'
 import { useToast } from '~/composables/useToast'
+
+// 'right' (desktop sidebar — panel opens beside the nav so it never covers
+// menu items) or 'down' (mobile drawer, where sideways would overflow).
+const props = withDefaults(defineProps<{ direction?: 'right' | 'down' }>(), { direction: 'right' })
 
 const auth = useAuthStore()
 const { clubs, activeClub, setClub, refreshClubs } = useClub()
@@ -75,7 +79,10 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
 
     <div
       v-if="open"
-      class="absolute left-2.5 right-2.5 top-full mt-1 z-50 rounded-xl border border-[var(--color-border-2)] bg-[var(--color-card)] shadow-card overflow-hidden"
+      class="absolute z-50 rounded-xl border border-[var(--color-border-2)] bg-[var(--color-card)] shadow-lift overflow-hidden"
+      :class="props.direction === 'right'
+        ? 'left-full top-0 ml-1.5 w-64'
+        : 'left-2.5 right-2.5 top-full mt-1'"
       role="listbox"
     >
       <input
@@ -101,6 +108,14 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
         </button>
         <p v-if="!filtered.length" class="px-3 py-2 text-[12px] text-[var(--color-muted-2)]">No clubs found.</p>
       </div>
+      <NuxtLink
+        to="/clubs"
+        class="press w-full flex items-center gap-2 px-3 py-2 text-[12.5px] font-medium text-[var(--color-muted)] border-t border-[var(--color-border-2)] hover:bg-[var(--color-hairline)] hover:text-[var(--color-ink)]"
+        @click="open = false"
+      >
+        <Squares2X2Icon class="w-4 h-4 shrink-0" aria-hidden="true" />
+        All clubs
+      </NuxtLink>
       <button
         v-if="isAdmin"
         type="button"

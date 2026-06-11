@@ -10,8 +10,11 @@ const branding = inject<{ logoUrl: string | null; venueName: string } | null>('b
 const route = useRoute()
 const router = useRouter()
 
+const { can } = usePermissions()
 const filterByRole = (items: NavItem[]) =>
-  items.filter(n => auth.user && n.tiers.includes(auth.user.tier as 'admin' | 'ambassador'))
+  items.filter(n => auth.user && (
+    n.module === 'access' ? auth.user.tier === 'admin' : can(n.module, 'view')
+  ))
 
 const mainItems = computed(() => filterByRole(mainSidebarNav))
 const mgmtItems = computed(() => filterByRole(mgmtSidebarNav))

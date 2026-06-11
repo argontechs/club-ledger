@@ -1,9 +1,11 @@
+import { assertCan } from '~~/server/utils/permissions'
 import { PayoutRepo } from '~~/server/repositories/PayoutRepository'
 import { readFileFromStorage } from '~~/server/utils/storage'
 import { ApiError } from '~~/server/utils/errors'
 import { requireClubId } from '~~/server/utils/club'
 
 export default defineEventHandler(async (event) => {
+  assertCan(event.context.user! as any, 'payouts', 'view')
   const clubId = await requireClubId(event)
   const id = Number(getRouterParam(event, 'id'))
   const p = await PayoutRepo.findById(id)

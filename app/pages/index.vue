@@ -14,7 +14,10 @@ const month = ref('')
 const { data: monthList } = useAPI<string[]>('/commissions/months')
 watch(monthList, (list) => {
   if (list && list.length && !month.value) month.value = list[0]
-  else if ((!list || list.length === 0) && !month.value) month.value = currentMonth()
+  // Fall back to the calendar month only once the list has RESOLVED empty —
+  // while it's still null (pending fetch) defaulting here would pin the
+  // dashboard to a month with no sales and render a phantom pill.
+  else if (Array.isArray(list) && list.length === 0 && !month.value) month.value = currentMonth()
 }, { immediate: true })
 
 const { data: commissions } = useAPI<any[]>(() => month.value ? `/commissions?month=${month.value}` : '')

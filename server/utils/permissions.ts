@@ -1,8 +1,23 @@
 import { eq, and } from 'drizzle-orm'
 import { useDB, schema } from '~~/server/db/client'
 import { ApiError } from './errors'
+import { can, type PermissionModule, type PermissionLevel } from '~~/shared/permissions'
 
-export type Actor = { id: number; roleName: string; isOwner?: number | boolean }
+export type Actor = {
+  id: number
+  roleName: string
+  isOwner?: number | boolean
+  tier?: string
+  permissions?: Record<string, PermissionLevel> | null
+  clubAccess?: number[] | null
+}
+
+/** Module-permission guard: tier supplies defaults, owner overrides per user. */
+export function assertCan(actor: Actor, module: PermissionModule, level: 'view' | 'edit'): void {
+  if (!can(actor as any, module, level)) {
+    throw ApiError.forbidden('Insufficient permissions')
+  }
+}
 
 export type ProtectionTarget =
   | { kind: 'user'; targetIsOwner: boolean }

@@ -32,9 +32,13 @@ async function upload() {
     const fd = new FormData()
     fd.set('receipt', file.value)
     const auth = useAuthStore()
+    const activeClubId = useState<number | null>('active-club-id', () => null)
     const r = await $fetch<{ receipts: any[] }>(`/api/v1/payouts/${props.payout.id}/receipt`, {
       method: 'POST', body: fd,
-      headers: { authorization: auth.token ? `Bearer ${auth.token}` : '' },
+      headers: {
+        authorization: auth.token ? `Bearer ${auth.token}` : '',
+        ...(activeClubId.value ? { 'x-club-id': String(activeClubId.value) } : {}),
+      },
     })
     file.value = null
     toast.success('Receipt uploaded')

@@ -5,7 +5,7 @@ import { AmbassadorRepo } from '~~/server/repositories/AmbassadorRepository'
 import { RoleRepo } from '~~/server/repositories/RoleRepository'
 import { SaleTypeRepo } from '~~/server/repositories/SaleTypeRepository'
 import { ApiError } from '~~/server/utils/errors'
-import { assertNotOwnerProtected, type Actor } from '~~/server/utils/permissions'
+import { assertNotOwnerProtected, assertCan, type Actor } from '~~/server/utils/permissions'
 
 export interface ParsedRow {
   date: string
@@ -105,9 +105,7 @@ export const PDFImportService = {
   },
 
   async commit(actor: Actor & { id: number; tier?: string }, clubId: number, body: unknown) {
-    if ((actor as any).tier !== 'admin') {
-      throw ApiError.forbidden('Insufficient role')
-    }
+    assertCan(actor, 'import', 'edit')
     const parsed = CommitSchema.safeParse(body)
     if (!parsed.success) {
       const issues = parsed.error.issues

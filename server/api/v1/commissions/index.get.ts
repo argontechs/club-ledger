@@ -1,8 +1,10 @@
+import { assertCan } from '~~/server/utils/permissions'
 import { loadCommissions } from '~~/server/services/CommissionService'
 import { ApiError } from '~~/server/utils/errors'
 import { requireClubId } from '~~/server/utils/club'
 
 export default defineEventHandler(async (event) => {
+  assertCan(event.context.user! as any, 'commissions', 'view')
   const month = String(getQuery(event).month || '')
   if (!/^\d{4}-\d{2}$/.test(month)) throw ApiError.validation({ month: 'expected YYYY-MM' })
 

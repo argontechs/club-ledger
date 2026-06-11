@@ -1,7 +1,9 @@
+import { assertCan } from '~~/server/utils/permissions'
 import { sql, eq } from 'drizzle-orm'
 import { useDB, schema } from '~~/server/db/client'
 import { requireClubId } from '~~/server/utils/club'
 export default defineEventHandler(async (event) => {
+  assertCan(event.context.user! as any, 'sales', 'view')
   const clubId = await requireClubId(event)
   const rows = await useDB().select({
     month: sql<string>`SUBSTRING(${schema.sales.date}, 1, 7)`.as('month'),

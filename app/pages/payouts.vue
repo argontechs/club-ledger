@@ -22,7 +22,7 @@ const { data: teams } = useAPI<any[]>('/teams')
 
 watch(monthList, (list) => {
   if (list && list.length && !month.value) month.value = list[0]
-  else if ((!list || list.length === 0) && !month.value) month.value = currentMonth()
+  else if (Array.isArray(list) && list.length === 0 && !month.value) month.value = currentMonth()
 }, { immediate: true })
 
 const page = ref(1)

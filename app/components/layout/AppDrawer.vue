@@ -11,8 +11,11 @@ const branding = inject<{ logoUrl: string | null; venueName: string } | null>('b
 const route = useRoute()
 const router = useRouter()
 
+const { can } = usePermissions()
 const filterByRole = (items: NavItem[]) =>
-  items.filter(n => auth.user && n.tiers.includes(auth.user.tier as 'admin' | 'ambassador'))
+  items.filter(n => auth.user && (
+    n.module === 'access' ? auth.user.tier === 'admin' : can(n.module, 'view')
+  ))
 
 const mainItems = computed(() => filterByRole(mainSidebarNav))
 const mgmtItems = computed(() => filterByRole(mgmtSidebarNav))
@@ -77,7 +80,7 @@ watch(() => route.path, () => { drawer.value = false })
         </div>
 
         <div class="pt-2">
-          <ClubSwitcher />
+          <ClubSwitcher direction="down" />
         </div>
 
         <nav class="flex-1 px-2.5 py-3 overflow-y-auto min-h-0">

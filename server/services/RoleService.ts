@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { RoleRepo } from '~~/server/repositories/RoleRepository'
 import { ApiError } from '~~/server/utils/errors'
-import type { Actor } from '~~/server/utils/permissions'
+import { assertCan, type Actor } from '~~/server/utils/permissions'
 
 const PayloadSchema = z.object({
   name: z.string().trim().min(1, 'name is required').max(40),
@@ -59,9 +59,7 @@ export const RoleService = {
   },
 
   async create(actor: Actor & { roleName: string; tier?: string }, clubId: number, body: unknown) {
-    if ((actor as any).tier !== 'admin') {
-      throw ApiError.forbidden('Insufficient role')
-    }
+    assertCan(actor, 'roles', 'edit')
     const v = validateRolePayload(body)
 
     if (v.tier === 'admin' && !(actor as any).isOwner) {
@@ -84,9 +82,7 @@ export const RoleService = {
   },
 
   async update(actor: Actor & { roleName: string; tier?: string }, clubId: number, id: number, body: unknown) {
-    if ((actor as any).tier !== 'admin') {
-      throw ApiError.forbidden('Insufficient role')
-    }
+    assertCan(actor, 'roles', 'edit')
     const existing = await this.get(id)
     if (existing.clubId === null) {
       throw ApiError.forbidden('Staff roles are not managed here')
@@ -123,9 +119,7 @@ export const RoleService = {
   },
 
   async remove(actor: Actor & { tier?: string }, clubId: number, id: number) {
-    if ((actor as any).tier !== 'admin') {
-      throw ApiError.forbidden('Insufficient role')
-    }
+    assertCan(actor, 'roles', 'edit')
     const existing = await this.get(id)
     if (existing.clubId === null) {
       throw ApiError.forbidden('Staff roles are not managed here')

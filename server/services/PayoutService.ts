@@ -5,7 +5,7 @@ import { AmbassadorRepo } from '~~/server/repositories/AmbassadorRepository'
 import { SaleRepo } from '~~/server/repositories/SaleRepository'
 import { computeCommissions, type CommissionRoleConfig } from '~~/server/services/CommissionService'
 import { ApiError } from '~~/server/utils/errors'
-import { assertNotOwnerProtected, type Actor } from '~~/server/utils/permissions'
+import { assertNotOwnerProtected, assertCan, type Actor } from '~~/server/utils/permissions'
 import { saveFile, readFileFromStorage, deleteFromStorage } from '~~/server/utils/storage'
 
 const CreateSchema = z.object({
@@ -17,9 +17,7 @@ const CreateSchema = z.object({
 })
 
 function assertAdminTier(actor: Actor & { tier?: string }) {
-  if ((actor as any).tier !== 'admin') {
-    throw ApiError.forbidden('Insufficient role')
-  }
+  assertCan(actor, 'payouts', 'edit')
 }
 
 // Payout ids are global — ownership is asserted against the active club so

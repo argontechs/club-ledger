@@ -5,7 +5,7 @@ import { SaleRepo } from '~~/server/repositories/SaleRepository'
 import { AmbassadorRepo } from '~~/server/repositories/AmbassadorRepository'
 import { SaleTypeService } from '~~/server/services/SaleTypeService'
 import { ApiError } from '~~/server/utils/errors'
-import { assertNotOwnerProtected, type Actor } from '~~/server/utils/permissions'
+import { assertNotOwnerProtected, assertCan, type Actor } from '~~/server/utils/permissions'
 
 const CreateSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -31,9 +31,7 @@ export const SaleService = {
   },
 
   async create(actor: Actor & { id: number; roleName: string; tier?: string }, clubId: number, body: unknown) {
-    if ((actor as any).tier !== 'admin') {
-      throw ApiError.forbidden('Insufficient role')
-    }
+    assertCan(actor, 'sales', 'edit')
     const v = CreateSchema.parse(body)
     const amb = await AmbassadorRepo.findById(v.ambassadorId)
     if (!amb || amb.deletedAt) throw ApiError.validation({ ambassadorId: 'Unknown ambassador' })
@@ -51,9 +49,7 @@ export const SaleService = {
   },
 
   async update(actor: Actor & { roleName: string; tier?: string }, clubId: number, id: number, body: unknown) {
-    if ((actor as any).tier !== 'admin') {
-      throw ApiError.forbidden('Insufficient role')
-    }
+    assertCan(actor, 'sales', 'edit')
     const s = await this.get(id, clubId)
     if (s.status !== 'draft') throw ApiError.conflict('Only draft sales can be edited')
     await assertNotOwnerProtected(actor, { kind: 'sale', ambassadorId: s.ambassadorId })
@@ -79,9 +75,7 @@ export const SaleService = {
   },
 
   async confirm(actor: Actor & { roleName: string; tier?: string }, clubId: number, id: number) {
-    if ((actor as any).tier !== 'admin') {
-      throw ApiError.forbidden('Insufficient role')
-    }
+    assertCan(actor, 'sales', 'edit')
     const s = await this.get(id, clubId)
     if (s.status !== 'draft') throw ApiError.conflict('Only draft sales can be confirmed')
     await assertNotOwnerProtected(actor, { kind: 'sale', ambassadorId: s.ambassadorId })
@@ -99,9 +93,7 @@ export const SaleService = {
   },
 
   async void(actor: Actor & { roleName: string; tier?: string }, clubId: number, id: number) {
-    if ((actor as any).tier !== 'admin') {
-      throw ApiError.forbidden('Insufficient role')
-    }
+    assertCan(actor, 'sales', 'edit')
     const s = await this.get(id, clubId)
     if (s.status === 'voided') return s
     await assertNotOwnerProtected(actor, { kind: 'sale', ambassadorId: s.ambassadorId })

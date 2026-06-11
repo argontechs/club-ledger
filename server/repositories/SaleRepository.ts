@@ -26,6 +26,16 @@ export const SaleRepo = {
   update(id: number, patch: Partial<NewSale>) {
     return useDB().update(schema.sales).set({ ...patch, updatedAt: new Date() }).where(eq(schema.sales.id, id))
   },
+  // Confirmed sales in an inclusive date range — feeds the commission report.
+  listConfirmedRange(clubId: number, from: string, to: string) {
+    return useDB().select().from(schema.sales)
+      .where(and(
+        eq(schema.sales.clubId, clubId),
+        eq(schema.sales.status, 'confirmed'),
+        gte(schema.sales.date, from),
+        lte(schema.sales.date, to),
+      ))
+  },
   totalForMonth(clubId: number, month: string) {
     return useDB().select({
       total: sql<string>`COALESCE(SUM(amount), 0)`.as('total'),

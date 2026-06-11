@@ -1,14 +1,13 @@
 import { PDFImportService } from '~~/server/services/PDFImportService'
 import { ApiError } from '~~/server/utils/errors'
+import { assertCan } from '~~/server/utils/permissions'
 import { requireClubId } from '~~/server/utils/club'
 
 const MAX_PDF_BYTES = 20 * 1024 * 1024  // 20 MB
 
 export default defineEventHandler(async (event) => {
   const actor = event.context.user!
-  if ((actor as any).tier !== 'admin') {
-    throw ApiError.forbidden('Insufficient role')
-  }
+  assertCan(actor as any, 'import', 'edit')
   const clubId = await requireClubId(event)
   const parts = await readMultipartFormData(event)
   const file = parts?.find(p => p.name === 'file')

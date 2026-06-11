@@ -3,14 +3,20 @@ import { ClubRepo } from '~~/server/repositories/ClubRepository'
 import { RoleRepo } from '~~/server/repositories/RoleRepository'
 import { SaleTypeRepo } from '~~/server/repositories/SaleTypeRepository'
 import { ApiError } from '~~/server/utils/errors'
-import type { Actor } from '~~/server/utils/permissions'
+import { assertCan, type Actor } from '~~/server/utils/permissions'
 
 const NameSchema = z.object({ name: z.string().min(1).max(120) })
 
 function assertAdminTier(actor: Actor & { tier?: string }) {
-  if ((actor as any).tier !== 'admin') {
-    throw ApiError.forbidden('Insufficient role')
-  }
+  assertCan(actor, 'clubs', 'edit')
+}
+
+// Owner-managed club restrictions: null clubAccess = every club.
+function filterByAccess<T extends { id: number }>(actor: Actor, clubs: T[]): T[] {
+  const a = actor as any
+  if (a.isOwner || !Array.isArray(a.clubAccess)) return clubs
+  const allowed = new Set<number>(a.clubAccess)
+  return clubs.filter(c => allowed.has(c.id))
 }
 
 // Every new club starts with editable commission-role scaffolding so the
@@ -21,8 +27,17 @@ const DEFAULT_CLUB_ROLES = [
 ]
 
 export const ClubService = {
-  async list(_actor: Actor) {
-    return ClubRepo.list()
+  async list(actor: Actor) {
+    return filterByAccess(actor, await ClubRepo.list())
+  },
+
+  async listWithStats(actor: Actor) {
+    const [clubs, stats] = await Promise.all([ClubRepo.list(), ClubRepo.stats()])
+    return filterByAccess(actor, clubs).map(c => ({
+      ...c,
+      ambassadors: stats[c.id]?.ambassadors ?? 0,
+      sales: stats[c.id]?.sales ?? 0,
+    }))
   },
 
   async create(actor: Actor & { tier?: string }, body: unknown) {

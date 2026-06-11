@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { SettingsService } from '~~/server/services/SettingsService'
 import { ApiError } from '~~/server/utils/errors'
+import { assertCan } from '~~/server/utils/permissions'
 
 // venue_name moved to the clubs table (per-club identity) in migration 0004.
 const Schema = z.object({
@@ -17,9 +18,7 @@ const Schema = z.object({
 
 export default defineEventHandler(async (event) => {
   const actor = event.context.user!
-  if ((actor as any).tier !== 'admin') {
-    throw ApiError.forbidden('Insufficient role')
-  }
+  assertCan(actor as any, 'settings', 'edit')
   const body = Schema.parse(await readBody(event))
   for (const [k, v] of Object.entries(body)) {
     if (v === undefined) continue

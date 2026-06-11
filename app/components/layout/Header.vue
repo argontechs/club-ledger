@@ -20,6 +20,7 @@ const titles: Record<string, { title: string; eyebrow?: string }> = {
   '/ambassadors':  { title: 'Ambassadors',  eyebrow: 'People' },
   '/teams':        { title: 'Teams',        eyebrow: 'People' },
   '/access':       { title: 'Access & roles', eyebrow: 'Admin' },
+  '/clubs':        { title: 'Clubs',        eyebrow: 'Workspace' },
   '/roles':        { title: 'Roles',        eyebrow: 'Admin' },
   '/settings':     { title: 'Settings',     eyebrow: 'Admin' },
 }

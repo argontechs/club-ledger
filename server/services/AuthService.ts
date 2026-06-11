@@ -30,6 +30,7 @@ export async function login(body: unknown, jwtSecret: string) {
     passwordHash: schema.users.passwordHash, roleId: schema.users.roleId,
     ambassadorId: schema.users.ambassadorId, roleName: schema.roles.name,
     tier: schema.roles.tier, isOwner: schema.roles.isOwner,
+    permissions: schema.users.permissions,
   })
     .from(schema.users)
     .innerJoin(schema.roles, eq(schema.roles.id, schema.users.roleId))
@@ -46,7 +47,7 @@ export async function login(body: unknown, jwtSecret: string) {
   )
   return {
     token,
-    user: { id: user.id, email: user.email, name: user.name, role: user.roleName, tier: user.tier, isOwner: user.isOwner === 1, ambassadorId: user.ambassadorId },
+    user: { id: user.id, email: user.email, name: user.name, role: user.roleName, tier: user.tier, isOwner: user.isOwner === 1, permissions: user.permissions ?? null, ambassadorId: user.ambassadorId },
   }
 }
 

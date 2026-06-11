@@ -1,5 +1,10 @@
 <script setup lang="ts">
 import { formatRM, formatAmount, currencySymbol } from '~/utils/currency'
+import { downloadAuthed } from '~/utils/download'
+import { useAuthStore } from '~/stores/auth'
+
+const auth = useAuthStore()
+const isAdmin = computed(() => auth.user?.tier === 'admin')
 
 const month = ref('')
 const ambassadorFilter = ref<number | ''>('')
@@ -46,6 +51,47 @@ const roleTone = (r: string) => {
   if (r === 'leader') return 'amber'
   return 'slate'
 }
+
+// --- Date-range commission report (weekly submissions) ---
+const showReport = ref(false)
+const reportFrom = ref('')
+const reportTo = ref('')
+const exporting = ref(false)
+const toast = useToast()
+
+function ymd(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+function setPreset(preset: 'this-week' | 'last-week' | 'mtd') {
+  const now = new Date()
+  if (preset === 'mtd') {
+    reportFrom.value = ymd(new Date(now.getFullYear(), now.getMonth(), 1))
+    reportTo.value = ymd(now)
+    return
+  }
+  // Weeks run Monday–Sunday
+  const dow = (now.getDay() + 6) % 7
+  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dow)
+  if (preset === 'last-week') monday.setDate(monday.getDate() - 7)
+  const sunday = new Date(monday)
+  sunday.setDate(monday.getDate() + 6)
+  reportFrom.value = ymd(monday)
+  reportTo.value = ymd(sunday)
+}
+watch(showReport, (v) => { if (v && !reportFrom.value) setPreset('last-week') })
+
+async function exportReport() {
+  if (!reportFrom.value || !reportTo.value || exporting.value) return
+  exporting.value = true
+  try {
+    await downloadAuthed(`/commissions/report?from=${reportFrom.value}&to=${reportTo.value}`, 'commission-report.pdf')
+    showReport.value = false
+  } catch {
+    toast.error('Could not generate the report')
+  } finally {
+    exporting.value = false
+  }
+}
 </script>
 
 <template>
@@ -55,8 +101,35 @@ const roleTone = (r: string) => {
         <p class="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-muted-2)]">Commissions for</p>
         <p class="font-display text-[18px] font-semibold text-[var(--color-ink)] tracking-tight">{{ monthLabel }}</p>
       </div>
-      <AppMonthPills v-model="month" :months="monthList ?? []" label="Month" empty-text="No sales recorded yet" />
+      <div class="flex flex-col sm:flex-row sm:items-end gap-2">
+        <AppMonthPills v-model="month" :months="monthList ?? []" label="Month" empty-text="No sales recorded yet" />
+        <AppButton v-if="isAdmin" variant="secondary" class="shrink-0" @click="showReport = true">Export report</AppButton>
+      </div>
     </div>
+
+    <AppModal :open="showReport" title="Commission report" @close="showReport = false">
+      <div class="space-y-4">
+        <p class="text-[12.5px] text-[var(--color-muted)]">
+          PDF of every earner's confirmed sales and base commission (frozen rates) for a date range —
+          made for the weekly submission. Monthly bonuses settle at month close and are excluded.
+        </p>
+        <div class="flex flex-wrap gap-1.5">
+          <AppButton size="sm" variant="ghost" @click="setPreset('this-week')">This week</AppButton>
+          <AppButton size="sm" variant="ghost" @click="setPreset('last-week')">Last week</AppButton>
+          <AppButton size="sm" variant="ghost" @click="setPreset('mtd')">Month to date</AppButton>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <AppInput v-model="reportFrom" type="date" label="From" />
+          <AppInput v-model="reportTo" type="date" label="To" />
+        </div>
+      </div>
+      <template #footer>
+        <AppButton variant="ghost" @click="showReport = false">Cancel</AppButton>
+        <AppButton :disabled="exporting || !reportFrom || !reportTo" @click="exportReport">
+          {{ exporting ? 'Generating…' : 'Download PDF' }}
+        </AppButton>
+      </template>
+    </AppModal>
 
     <AppStatStrip :stats="summary" />
 

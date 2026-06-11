@@ -1,6 +1,7 @@
 import { ClubRepo } from '~~/server/repositories/ClubRepository'
 import { saveFile, deleteFromStorage } from '~~/server/utils/storage'
 import { ApiError } from '~~/server/utils/errors'
+import { assertCan } from '~~/server/utils/permissions'
 import { requireClubId } from '~~/server/utils/club'
 
 const MAX_BYTES = 2 * 1024 * 1024
@@ -9,7 +10,7 @@ const ALLOWED = ['image/png', 'image/jpeg', 'image/svg+xml']
 // Uploads the ACTIVE club's logo (logos are per-club venue identity).
 export default defineEventHandler(async (event) => {
   const actor = event.context.user!
-  if ((actor as any).tier !== 'admin') throw ApiError.forbidden('Insufficient role')
+  assertCan(actor as any, 'settings', 'edit')
   const clubId = await requireClubId(event)
 
   const parts = await readMultipartFormData(event)

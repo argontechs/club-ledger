@@ -17,6 +17,11 @@ export async function requireClubId(event: H3Event): Promise<number> {
   if (!club || club.deletedAt) {
     throw ApiError.validation({ club: 'Unknown club' })
   }
+  // Owner-managed club restrictions: a null clubAccess means all clubs.
+  const actor = event.context.user as any
+  if (actor && !actor.isOwner && Array.isArray(actor.clubAccess) && !actor.clubAccess.includes(id)) {
+    throw ApiError.forbidden('No access to this club')
+  }
   event.context.clubId = id
   return id
 }

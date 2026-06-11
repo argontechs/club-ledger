@@ -17,6 +17,26 @@ export const ClubRepo = {
   softDelete(id: number) {
     return useDB().update(schema.clubs).set({ deletedAt: new Date() }).where(eq(schema.clubs.id, id))
   },
+  // Per-club ambassador and sale counts for the clubs overview page.
+  async stats(): Promise<Record<number, { ambassadors: number; sales: number }>> {
+    const db = useDB()
+    const out: Record<number, { ambassadors: number; sales: number }> = {}
+    const ambs = await db.select({ clubId: schema.ambassadors.clubId, n: sql<number>`COUNT(*)` })
+      .from(schema.ambassadors)
+      .where(isNull(schema.ambassadors.deletedAt))
+      .groupBy(schema.ambassadors.clubId)
+    for (const r of ambs) {
+      out[r.clubId] = { ambassadors: Number(r.n), sales: 0 }
+    }
+    const sales = await db.select({ clubId: schema.sales.clubId, n: sql<number>`COUNT(*)` })
+      .from(schema.sales)
+      .groupBy(schema.sales.clubId)
+    for (const r of sales) {
+      out[r.clubId] = { ambassadors: out[r.clubId]?.ambassadors ?? 0, sales: Number(r.n) }
+    }
+    return out
+  },
+
   // Total rows across club-owned tables — guards club deletion.
   async countScopedRows(clubId: number): Promise<number> {
     const db = useDB()

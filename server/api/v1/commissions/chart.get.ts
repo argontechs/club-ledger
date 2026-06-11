@@ -1,9 +1,11 @@
+import { assertCan } from '~~/server/utils/permissions'
 import { like, isNull, and, eq } from 'drizzle-orm'
 import { useDB, schema } from '~~/server/db/client'
 import { computeCommissions, type CommissionRoleConfig, type CommissionEarner } from '~~/server/services/CommissionService'
 import { requireClubId } from '~~/server/utils/club'
 
 export default defineEventHandler(async (event) => {
+  assertCan(event.context.user! as any, 'commissions', 'view')
   const clubId = await requireClubId(event)
   const db = useDB()
 

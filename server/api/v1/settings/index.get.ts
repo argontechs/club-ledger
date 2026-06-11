@@ -1,9 +1,7 @@
 import { SettingsService } from '~~/server/services/SettingsService'
-import { ApiError } from '~~/server/utils/errors'
+import { assertCan } from '~~/server/utils/permissions'
 
 export default defineEventHandler((event) => {
-  if ((event.context.user as any)?.tier !== 'admin') {
-    throw ApiError.forbidden('Insufficient role')
-  }
+  assertCan(event.context.user! as any, 'settings', 'view')
   return SettingsService.getAll()
 })

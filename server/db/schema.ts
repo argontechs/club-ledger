@@ -77,6 +77,11 @@ export const users = mysqlTable('users', {
   ambassadorId: int('ambassador_id'),
   // Per-chapter onboarding-tour progress: { [chapterId]: 'done' | 'skipped' }
   onboardingState: json('onboarding_state').$type<Record<string, 'done' | 'skipped'>>(),
+  // Owner-managed access: null = all clubs; array = only these club ids.
+  clubAccess: json('club_access').$type<number[]>(),
+  // Owner-managed module permissions: null = tier defaults;
+  // { [module]: 'edit' | 'view' | 'none' } overrides per module.
+  permissions: json('permissions').$type<Record<string, 'edit' | 'view' | 'none'>>(),
   ...ts(),
   ...softDelete(),
 })

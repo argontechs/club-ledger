@@ -30,9 +30,17 @@ vi.mock('~~/server/db/client', () => ({
   }),
   schema: { roles: { id: 'id' } },
 }))
-vi.mock('~~/server/utils/permissions', () => ({
-  assertNotOwnerProtected: vi.fn(async () => undefined),
-}))
+vi.mock('~~/server/utils/permissions', async () => {
+  const { can } = await import('~~/shared/permissions')
+  return {
+    assertNotOwnerProtected: vi.fn(async () => undefined),
+    assertCan: (actor: any, module: any, level: any) => {
+      if (!can(actor, module, level)) {
+        throw Object.assign(new Error('Insufficient permissions'), { statusCode: 403 })
+      }
+    },
+  }
+})
 
 import { SaleService } from '~~/server/services/SaleService'
 import { SaleRepo } from '~~/server/repositories/SaleRepository'
