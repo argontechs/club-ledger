@@ -1,5 +1,5 @@
 import { extractText, getDocumentProxy } from 'unpdf'
-import { detectParser, importParsers } from '~~/server/import/parsers'
+import { detectParser, importParsers, type PositionedPage } from '~~/server/import/parsers'
 import { z } from 'zod'
 import { SaleRepo } from '~~/server/repositories/SaleRepository'
 import { AmbassadorRepo } from '~~/server/repositories/AmbassadorRepository'
@@ -43,7 +43,21 @@ export async function parsePdfBuffer(buf: Buffer): Promise<ParseResult> {
       file: `Unrecognised statement format. Supported: ${importParsers.map(p => p.label).join('; ')}`,
     })
   }
-  const r = detected.parser.parse(normalized, rawText)
+
+  // Positioned items let column-based formats (404's BGO vs AMT ORD amount
+  // columns) recover which column a number sat under — flat text can't.
+  const positioned: PositionedPage[] = []
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i)
+    const tc = await page.getTextContent()
+    positioned.push({
+      items: (tc.items as Array<{ str?: string; transform: number[]; width?: number }>)
+        .filter(it => typeof it.str === 'string' && it.str.trim() !== '')
+        .map(it => ({ str: it.str!, x: it.transform[4]!, y: it.transform[5]!, w: it.width ?? 0 })),
+    })
+  }
+
+  const r = detected.parser.parse(normalized, rawText, positioned)
   return {
     ...r,
     format: detected.parser.label,

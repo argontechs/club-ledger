@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { nonoTableParser, club404BgoParser, commissionStatementParser, detectParser } from '~~/server/import/parsers'
+import { nonoTableParser, club404AgentParser, commissionStatementParser, detectParser, type PositionedPage } from '~~/server/import/parsers'
 
 // Format fragments replicate each club's statement layout with invented data.
 const NONO_TEXT = `AGENT COMMISSION ON DEMOAGENT 营业 2026-04
@@ -18,7 +18,7 @@ const norm = (s: string) => s.replace(/\s+/g, ' ')
 describe('import parser registry', () => {
   it('detects each format and prefers the right parser', () => {
     expect(detectParser(NONO_TEXT)?.parser.id).toBe('nono-table-v1')
-    expect(detectParser(C404_TEXT)?.parser.id).toBe('club404-bgo-v1')
+    expect(detectParser(C404_TEXT)?.parser.id).toBe('club404-agent-v1')
     expect(detectParser(STMT_TEXT)?.parser.id).toBe('commission-statement-v1')
     expect(detectParser('completely unrelated text')).toBeNull()
   })
@@ -33,7 +33,7 @@ describe('import parser registry', () => {
   })
 
   it('club404 parser: business date wins over settlement, receipt ids, reported rates, totals', () => {
-    const r = club404BgoParser.parse(norm(C404_TEXT), C404_TEXT)
+    const r = club404AgentParser.parse(norm(C404_TEXT), C404_TEXT)
     expect(r.rows).toHaveLength(2)
     // Business night 1 Apr even though it settled 2:39 AM on 2 Apr
     expect(r.rows[0]).toMatchObject({
@@ -49,10 +49,92 @@ describe('import parser registry', () => {
     expect(r.ambassadorHint).toBe('Tester(QQ)')
     const sum = r.rows.reduce((a, x) => a + x.amount, 0)
     expect(sum).toBe(r.headerTotal)
+    // Text-only parse (no positions): rows can't be classified and the
+    // operator is warned instead of everything silently becoming one type.
+    expect(r.rows.every(x => x.saleType === undefined)).toBe(true)
+    expect(r.errors.some(e => /BGO\/AMT ORD column position/.test(e))).toBe(true)
   })
 
-  it('club404 default sale type is BGO; nono is Table', () => {
-    expect(club404BgoParser.defaultSaleType).toBe('BGO')
+  it('club404 parser: classifies each row by which amount column it sits under', () => {
+    // Geometry mirrors the real statement: BGO SALES header centred ~367,
+    // AMT ORD ~433. Row 1's amount sits under BGO; row 2's under AMT ORD.
+    const item = (str: string, x: number, y: number, w = 24) => ({ str, x, y, w })
+    const pages: PositionedPage[] = [{
+      items: [
+        item('BGO SALES', 346, 658, 42),
+        item('AMT ORD', 416, 658, 34),
+        item('A00101202604020051', 178, 646, 75),
+        item('818.00', 352, 646, 25),   // under BGO SALES → BGO
+        item('89.98', 535, 646, 23),    // COMM AMT — far right, never the amount
+        item('A00101202604040010', 178, 634, 75),
+        item('758.00', 435, 634, 25),   // under AMT ORD → Table
+        item('83.38', 535, 634, 23),
+      ],
+    }]
+    const text = C404_TEXT
+      .replace('TOTAL RM - RM 1,576.00 RM 173.36', 'TOTAL RM 818.00 RM 758.00 RM 173.36')
+    const r = club404AgentParser.parse(norm(text), text, pages)
+    expect(r.rows.find(x => x.externalOrderId === 'A00101202604020051')!.saleType).toBe('BGO')
+    expect(r.rows.find(x => x.externalOrderId === 'A00101202604040010')!.saleType).toBe('Table')
+    // Per-column totals reconcile against the per-type row sums → no errors
+    expect(r.headerTotal).toBe(1576)
+    expect(r.reportedCommissionTotal).toBe(173.36)
+    expect(r.errors).toHaveLength(0)
+  })
+
+  it('club404 parser: per-column totals catch a misclassification', () => {
+    // Same geometry but BOTH amounts under AMT ORD while the printed TOTAL
+    // claims RM 818 of BGO — the per-column reconciliation must object.
+    const item = (str: string, x: number, y: number, w = 24) => ({ str, x, y, w })
+    const pages: PositionedPage[] = [{
+      items: [
+        item('BGO SALES', 346, 658, 42),
+        item('AMT ORD', 416, 658, 34),
+        item('A00101202604020051', 178, 646, 75),
+        item('818.00', 435, 646, 25),
+        item('A00101202604040010', 178, 634, 75),
+        item('758.00', 435, 634, 25),
+      ],
+    }]
+    const text = C404_TEXT
+      .replace('TOTAL RM - RM 1,576.00 RM 173.36', 'TOTAL RM 818.00 RM 758.00 RM 173.36')
+    const r = club404AgentParser.parse(norm(text), text, pages)
+    expect(r.errors.some(e => /BGO SALES total/.test(e))).toBe(true)
+    expect(r.errors.some(e => /AMT ORD total/.test(e))).toBe(true)
+  })
+
+  it('club404 parser: an unclassified row cannot mask a provable misclassification elsewhere', () => {
+    // Page 1 classifies two rows as Table; page 2 (no headers) leaves one
+    // RM 640 row unclassified. The printed BGO total of RM 818 exceeds what
+    // the unclassified row could possibly contribute — must still error.
+    const item = (str: string, x: number, y: number, w = 24) => ({ str, x, y, w })
+    const pages: PositionedPage[] = [
+      {
+        items: [
+          item('BGO SALES', 346, 658, 42),
+          item('AMT ORD', 416, 658, 34),
+          item('A00101202604020051', 178, 646, 75),
+          item('818.00', 435, 646, 25),
+          item('A00101202604040010', 178, 634, 75),
+          item('758.00', 435, 634, 25),
+        ],
+      },
+      { items: [item('A00101202604050020', 178, 700, 75), item('640.00', 435, 700, 25)] },
+    ]
+    const text = C404_TEXT
+      .replace(' TOTAL RM - RM 1,576.00 RM 173.36',
+        ' 5 Apr 2026 2026-04-05 11:10 PM A00101202604050020 Tester(QQ) K01 RM 640.00 11.00% RM 70.40 TOTAL RM 818.00 RM 1,398.00 RM 243.36')
+    const r = club404AgentParser.parse(norm(text), text, pages)
+    expect(r.rows).toHaveLength(3)
+    expect(r.rows.filter(x => x.saleType === undefined)).toHaveLength(1)
+    // Both the unclassified warning AND the reconciliation errors fire
+    expect(r.errors.some(e => /column position for 1 row/.test(e))).toBe(true)
+    expect(r.errors.some(e => /BGO SALES total/.test(e))).toBe(true)
+    expect(r.errors.some(e => /AMT ORD total/.test(e))).toBe(true)
+  })
+
+  it('club404 default sale type is Table (AMT ORD column); nono is Table', () => {
+    expect(club404AgentParser.defaultSaleType).toBe('Table')
     expect(nonoTableParser.defaultSaleType).toBe('Table')
   })
 

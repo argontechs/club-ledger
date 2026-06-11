@@ -33,14 +33,20 @@ export interface ImportParseResult {
   errors: string[]
 }
 
+/** A text fragment with its position on the page. Formats that put meaning
+ * in COLUMNS (e.g. 404's separate BGO SALES vs AMT ORD amount columns) need
+ * x-coordinates — flat text extraction loses which column a number was in. */
+export interface PositionedItem { str: string; x: number; y: number; w: number }
+export interface PositionedPage { items: PositionedItem[] }
+
 export interface ImportParser {
   id: string
   label: string
-  /** Sale type these statements describe (must exist in the club's types). */
+  /** Fallback sale type for rows that don't carry their own (must exist in the club's types). */
   defaultSaleType: string
   /** 0..1 confidence that `text` is this format. */
   detect(text: string): number
-  parse(normalized: string, rawText: string): ImportParseResult
+  parse(normalized: string, rawText: string, pages?: PositionedPage[]): ImportParseResult
 }
 
 function toNumber(cell: string): number | null {
@@ -125,25 +131,44 @@ export const nonoTableParser: ImportParser = {
 }
 
 // --------------------------------------------------------------------------
-// Format 2 — Club 404 BGO statement ('CLUB 404 NOT FOUND', 公关组业绩 BGO SALES).
+// Format 2 — Club 404 agent statement ('CLUB 404 NOT FOUND', AGENT COMMISSION).
 // Rows: business date · settlement datetime · A+17-digit receipt · agent ·
 // table · RM amount · commission % · RM commission. The BUSINESS date is the
-// sale date (settlement regularly crosses midnight). Validated against the
-// real April 2026 statement: 39 rows, gross and commission sums reconcile
-// with the printed TOTAL to the cent.
+// sale date (settlement regularly crosses midnight).
+//
+// CRITICAL COLUMN SEMANTICS: the statement has TWO amount columns —
+// 公关组业绩 BGO SALES and 销售金额 AMT ORD — and which column a row's amount
+// sits under decides its sale type (AMT ORD = table sale, BGO SALES = BGO).
+// Flat text extraction loses the column, so classification uses each
+// amount's x-coordinate against the header positions, and the printed
+// per-column TOTAL cells are reconciled against the per-type row sums so a
+// misclassification can never pass silently. The COMM % / COMM AMT columns
+// are never used as data — the system computes commissions itself from each
+// ambassador's rate plan; the printed totals serve only as a cross-check.
+// Validated against the real April 2026 statement: 39 rows, all under
+// AMT ORD (BGO total prints '-'), gross reconciles to the cent.
 // --------------------------------------------------------------------------
 const MONTH_NUM: Record<string, number> = {
   Jan: 1, Feb: 2, Mar: 3, Apr: 4, May: 5, Jun: 6,
   Jul: 7, Aug: 8, Sep: 9, Oct: 10, Nov: 11, Dec: 12,
 }
 const C404_ROW = /(\d{1,2}) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (\d{4}) (\d{4}-\d{2}-\d{2}) \d{1,2}:\d{2} (?:AM|PM) (A\d{15,20}) (\S+) (\S+) RM ([\d,.]+) ([\d.]+)% RM ([\d,.\-]+)/g
-const C404_TOTAL = /TOTAL RM\s*-?\s*RM\s*([\d,.]+)\s+RM\s*([\d,.]+)/
+const C404_TOTAL_CELLS = /TOTAL((?:\s+RM\s*(?:-|[\d,.]+))+)/
 const C404_HINT = /AGENT COMMISSION ON\s+(\S+)/
+const NUMERIC_CELL = /^-?[\d,]+\.\d{2}$/
 
-export const club404BgoParser: ImportParser = {
-  id: 'club404-bgo-v1',
-  label: 'BGO statement (公关组业绩)',
-  defaultSaleType: 'BGO',
+/** Column x-centers per page, taken from the header row. */
+function c404ColumnMap(page: PositionedPage): { bgo: number; amt: number } | null {
+  const bgoH = page.items.find(i => i.str.includes('BGO SALES') || i.str.includes('公关组业绩'))
+  const amtH = page.items.find(i => i.str.includes('AMT ORD'))
+  if (!bgoH || !amtH) return null
+  return { bgo: bgoH.x + bgoH.w / 2, amt: amtH.x + amtH.w / 2 }
+}
+
+export const club404AgentParser: ImportParser = {
+  id: 'club404-agent-v1',
+  label: 'Agent statement (BGO / AMT ORD columns)',
+  defaultSaleType: 'Table',
   detect(text) {
     let score = 0
     if (/A\d{15,20}\s+\S+\s+\S+\s+RM/.test(text.replace(/\s+/g, ' '))) score += 0.5
@@ -151,29 +176,115 @@ export const club404BgoParser: ImportParser = {
     if (/TOTAL RM/.test(text.replace(/\s+/g, ' '))) score += 0.2
     return score
   },
-  parse(normalized) {
-    const total = normalized.match(C404_TOTAL)
-    const headerTotal = total ? Number(total[1]!.replace(/,/g, '')) : 0
-    const reportedCommissionTotal = total ? toNumber(total[2]!) : null
+  parse(normalized, _rawText, pages) {
+    const errors: string[] = []
     const hint = normalized.match(C404_HINT)
 
+    // Positional context: per page, the BGO/AMT column centers, the numeric
+    // cells, and where each receipt id sits (consumed once per occurrence).
+    const pageCtx = (pages ?? []).map(p => ({
+      cols: c404ColumnMap(p),
+      numeric: p.items.filter(i => NUMERIC_CELL.test(i.str.trim())),
+      receiptItems: new Map<string, PositionedItem[]>(),
+      items: p.items,
+    }))
+    for (const ctx of pageCtx) {
+      for (const it of ctx.items) {
+        const key = it.str.trim()
+        if (/^A\d{15,20}$/.test(key)) {
+          const list = ctx.receiptItems.get(key) ?? []
+          list.push(it)
+          ctx.receiptItems.set(key, list)
+        }
+      }
+    }
+
+    /** Sale type for a receipt's row: the LEFTMOST numeric cell on the row is
+     * the amount (COMM AMT sits far right); classify by nearest column center. */
+    function classify(receiptId: string): 'BGO' | 'Table' | null {
+      for (const ctx of pageCtx) {
+        const list = ctx.receiptItems.get(receiptId)
+        if (!list?.length || !ctx.cols) continue
+        const anchor = list.shift()!
+        const rowNums = ctx.numeric
+          .filter(i => Math.abs(i.y - anchor.y) <= 2)
+          .sort((a, b) => a.x - b.x)
+        const amountItem = rowNums[0]
+        if (!amountItem) return null
+        const center = amountItem.x + amountItem.w / 2
+        return Math.abs(center - ctx.cols.bgo) < Math.abs(center - ctx.cols.amt) ? 'BGO' : 'Table'
+      }
+      return null
+    }
+
     const rows: ParsedImportRow[] = []
+    let unclassified = 0
     let m: RegExpExecArray | null
     C404_ROW.lastIndex = 0
     while ((m = C404_ROW.exec(normalized))) {
       const amount = toNumber(m[8]!)
       if (amount === null) continue
       const date = `${m[3]}-${String(MONTH_NUM[m[2]!]).padStart(2, '0')}-${String(m[1]).padStart(2, '0')}`
+      const saleType = classify(m[5]!)
+      if (saleType === null) unclassified++
       rows.push({
         date,
         externalOrderId: m[5]!,
         tableNumber: m[7]!,
         amount,
+        saleType: saleType ?? undefined,
         reportedRate: toNumber(m[9]!) ?? undefined,
       })
     }
+    if (unclassified > 0) {
+      errors.push(`Couldn't locate the BGO/AMT ORD column position for ${unclassified} row(s) — they will import as ${club404AgentParser.defaultSaleType}; verify their types manually.`)
+    }
+
+    // The TOTAL line prints one cell per amount column plus the commission
+    // total: e.g. 'TOTAL RM - RM 63,736.00 RM 7,010.96' (BGO, AMT ORD, COMM).
+    // The last cell is the commission cross-check; the rest sum to the gross.
+    let headerTotal: number | null = null
+    let reportedCommissionTotal: number | null = null
+    let bgoTotal: number | null = null
+    let amtTotal: number | null = null
+    const totalLine = normalized.match(C404_TOTAL_CELLS)
+    if (totalLine) {
+      const cells = Array.from(totalLine[1]!.matchAll(/RM\s*(-|[\d,.]+)/g)).map(c => toNumber(c[1]!))
+      if (cells.length >= 2) {
+        reportedCommissionTotal = cells[cells.length - 1] ?? null
+        const grossCells = cells.slice(0, -1)
+        headerTotal = grossCells.reduce<number>((a, x) => a + (x ?? 0), 0)
+        // Cell order mirrors the column order: BGO SALES then AMT ORD.
+        if (grossCells.length === 2) {
+          bgoTotal = grossCells[0] ?? null
+          amtTotal = grossCells[1] ?? null
+        }
+      }
+    }
+
+    // Per-column reconciliation: if our column classification disagrees with
+    // the statement's own per-column totals, say so loudly before commit.
+    // Unclassified rows widen the acceptable band instead of disabling the
+    // check — a printed total OUTSIDE [classified sum, classified sum +
+    // unclassified sum] is provably wrong no matter where the unclassified
+    // rows belong, so misclassification can't hide behind one unreadable row.
+    const sumCents = (match: (x: ParsedImportRow) => boolean) =>
+      rows.reduce((a, x) => a + (match(x) ? Math.round(x.amount * 100) : 0), 0)
+    const unclassifiedCents = sumCents(x => x.saleType === undefined)
+    const checkColumn = (label: string, type: 'BGO' | 'Table', total: number | null) => {
+      if (total === null || rows.length === 0) return
+      const lo = sumCents(x => x.saleType === type)
+      const totalCents = Math.round(total * 100)
+      if (totalCents < lo - 5 || totalCents > lo + unclassifiedCents + 5) {
+        const unclassifiedNote = unclassifiedCents > 0 ? ` (plus RM ${(unclassifiedCents / 100).toFixed(2)} unclassified)` : ''
+        errors.push(`Statement's ${label} total is RM ${total.toFixed(2)}, but rows classified as ${type} sum to RM ${(lo / 100).toFixed(2)}${unclassifiedNote} — review the column mapping before importing.`)
+      }
+    }
+    checkColumn('BGO SALES', 'BGO', bgoTotal)
+    checkColumn('AMT ORD', 'Table', amtTotal)
+
     rows.sort((a, b) => a.date.localeCompare(b.date) || a.externalOrderId.localeCompare(b.externalOrderId))
-    return { ambassadorHint: hint?.[1]?.trim() ?? null, headerTotal, reportedCommissionTotal, rows, errors: [] }
+    return { ambassadorHint: hint?.[1]?.trim() ?? null, headerTotal, reportedCommissionTotal, rows, errors }
   },
 }
 
@@ -250,7 +361,7 @@ export const commissionStatementParser: ImportParser = {
   },
 }
 
-export const importParsers: ImportParser[] = [nonoTableParser, club404BgoParser, commissionStatementParser]
+export const importParsers: ImportParser[] = [nonoTableParser, club404AgentParser, commissionStatementParser]
 
 const MIN_CONFIDENCE = 0.5
 
