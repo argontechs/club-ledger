@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const inserted: any[] = []
-const role = { id: 7, name: 'VIP', tier: 'ambassador', baseRate: '9.50', bonusRate: '1.25' }
+const role = { id: 7, name: 'VIP', tier: 'ambassador', baseRate: '9.50', bonusRate: '1.25', rateOverrides: { BGO: '11.00' } }
 
 vi.mock('~~/server/repositories/SaleRepository', () => ({
   SaleRepo: {
@@ -69,5 +69,24 @@ describe('PDFImportService.commit', () => {
     await expect(
       PDFImportService.commit({ id: 2, roleName: 'whatever', tier: 'ambassador' } as any, 1, { status: 'draft', rows: [row] }),
     ).rejects.toMatchObject({ statusCode: 403 })
+  })
+
+  it('per-row sale types: each row keeps its own type and resolves its own rate', async () => {
+    const bgoRow = { date: '2025-12-14', externalOrderId: 'S-251214-BGO-L10-90000', tableNumber: 'L10', amount: 900, ambassadorId: 5, saleType: 'BGO' }
+    const twinRow = { date: '2025-12-14', externalOrderId: 'S-251214-BGO-L10-90000-2', tableNumber: 'L10', amount: 900, ambassadorId: 5, saleType: 'BGO' }
+    await PDFImportService.commit(admin, 1, { status: 'confirmed', rows: [row, bgoRow, twinRow] })
+    expect(inserted).toHaveLength(3)
+    expect(inserted[0].type).toBe('Table')                      // no row type → fallback (first active)
+    expect(inserted[0].confirmedCommissionRate).toBe('9.50')    // base rate
+    expect(inserted[1].type).toBe('BGO')
+    expect(inserted[1].confirmedCommissionRate).toBe('11.00')   // BGO override from the rate plan
+    expect(inserted[2].externalOrderId).toBe('S-251214-BGO-L10-90000-2') // occurrence suffix accepted
+  })
+
+  it('rejects rows whose sale type the club does not have', async () => {
+    const badRow = { ...row, saleType: 'Karaoke' }
+    await expect(
+      PDFImportService.commit(admin, 1, { status: 'draft', rows: [badRow] }),
+    ).rejects.toMatchObject({ statusCode: 422 })
   })
 })

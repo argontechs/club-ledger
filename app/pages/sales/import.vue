@@ -16,6 +16,7 @@ interface ParsedRow {
   externalOrderId: string
   tableNumber: string
   amount: number
+  saleType?: string
   ambassadorId: number | ''
 }
 
@@ -77,8 +78,13 @@ const readyRows = computed(() => importableRows.value.filter(r => !!r.ambassador
 const unassignedCount = computed(() => importableRows.value.filter(r => !r.ambassadorId).length)
 const allAssigned = computed(() => importableRows.value.length > 0 && unassignedCount.value === 0)
 
+// Some formats don't print a gross total — reconciliation then runs against
+// the statement's commission figures instead (parser-level errors below).
 const totalsMismatch = computed(() =>
-  dryRun.value && Math.abs(dryRun.value.parsedTotal - dryRun.value.headerTotal) > 0.05)
+  dryRun.value && dryRun.value.headerTotal != null
+  && Math.abs(dryRun.value.parsedTotal - dryRun.value.headerTotal) > 0.05)
+
+const mixedTypes = computed<string[]>(() => dryRun.value?.rowTypes ?? [])
 
 function reset() {
   file.value = null
@@ -110,6 +116,7 @@ async function commit() {
         externalOrderId: r.externalOrderId,
         tableNumber: r.tableNumber,
         amount: r.amount,
+        saleType: r.saleType ?? undefined,
         ambassadorId: Number(r.ambassadorId),
       })),
     })
@@ -212,7 +219,8 @@ const statusOptions = [
           From <span class="font-medium text-[var(--color-ink)]">{{ file?.name }}</span>
           <span v-if="dryRun.ambassadorHint" class="ml-2">· PDF hint: <span class="font-medium text-[var(--color-ink)]">{{ dryRun.ambassadorHint }}</span></span>
           <span v-if="dryRun.format" class="ml-2">· Detected: <span class="font-medium text-[var(--color-ink)]">{{ dryRun.format }}</span>
-            <AppBadge v-if="dryRun.suggestedSaleType" tone="slate" :dot="false" shape="square" class="ml-1">imports as {{ dryRun.suggestedSaleType }}</AppBadge>
+            <AppBadge v-if="mixedTypes.length > 0" tone="slate" :dot="false" shape="square" class="ml-1">imports as {{ mixedTypes.join(' + ') }}</AppBadge>
+            <AppBadge v-else-if="dryRun.suggestedSaleType" tone="slate" :dot="false" shape="square" class="ml-1">imports as {{ dryRun.suggestedSaleType }}</AppBadge>
           </span>
         </p>
       </div>
@@ -224,7 +232,7 @@ const statusOptions = [
 
     <!-- Summary cards -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-      <AppCard label="PDF total" :prefix="currencySymbol()" :value="formatAmount(dryRun.headerTotal)" />
+      <AppCard label="PDF total" :prefix="dryRun.headerTotal != null ? currencySymbol() : undefined" :value="dryRun.headerTotal != null ? formatAmount(dryRun.headerTotal) : '—'" />
       <AppCard label="Parsed total" :prefix="currencySymbol()" :value="formatAmount(dryRun.parsedTotal)" />
       <AppCard tone="brand" label="Will import" :value="readyRows.length" />
       <AppCard label="Duplicates" :value="dryRun.duplicates.length" />
@@ -233,6 +241,22 @@ const statusOptions = [
     <p v-if="totalsMismatch" class="text-[12px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3.5 py-2.5 inline-flex items-start gap-2">
       <span aria-hidden="true">⚠</span>
       Header and parsed totals don't match. Double-check the PDF before importing.
+    </p>
+
+    <p v-for="err in (dryRun.errors ?? [])" :key="err" class="text-[12px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3.5 py-2.5 inline-flex items-start gap-2 max-w-2xl">
+      <span aria-hidden="true">⚠</span>
+      <span>{{ err }}</span>
+    </p>
+
+    <p v-if="dryRun.unknownTypes?.length" class="text-[12px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3.5 py-2.5 inline-flex items-start gap-2 max-w-2xl">
+      <span aria-hidden="true">⚠</span>
+      <span>
+        This statement contains sale type{{ dryRun.unknownTypes.length === 1 ? '' : 's' }}
+        <span class="font-semibold text-[var(--color-ink)]">{{ dryRun.unknownTypes.join(', ') }}</span>
+        that this club doesn't have yet. The import will be rejected until you add
+        {{ dryRun.unknownTypes.length === 1 ? 'it' : 'them' }} under Settings → Sale types —
+        you can do that in another tab and import again without re-parsing.
+      </span>
     </p>
 
     <p v-if="dryRun.reportedCommissionTotal" class="text-[12px] text-[var(--color-muted)] bg-[var(--color-surface-2)] border border-[var(--color-border-2)] rounded-lg px-3.5 py-2.5 inline-flex items-start gap-2 max-w-2xl">
@@ -264,6 +288,7 @@ const statusOptions = [
               <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Date</th>
               <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Order</th>
               <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Table</th>
+              <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Type</th>
               <th class="px-4 py-3 text-right text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Amount</th>
               <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)] w-[220px]">Ambassador</th>
               <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Status</th>
@@ -278,10 +303,11 @@ const statusOptions = [
             >
               <td class="px-4 py-3 text-[13px] text-[var(--color-muted)]">{{ formatDate(row.date) }}</td>
               <td class="px-4 py-3 text-[12px] font-mono">
-                <span v-if="row.externalOrderId.startsWith('M-')" class="text-[var(--color-muted-2)] italic" title="No order ID in PDF — synthesized from date + table + amount">—</span>
+                <span v-if="row.externalOrderId.startsWith('M-') || row.externalOrderId.startsWith('S-')" class="text-[var(--color-muted-2)] italic" title="No order ID in PDF — synthesized from date + table + amount">—</span>
                 <span v-else class="text-[var(--color-muted)]">{{ row.externalOrderId }}</span>
               </td>
               <td class="px-4 py-3 text-[13px] text-[var(--color-muted)]">{{ row.tableNumber }}</td>
+              <td class="px-4 py-3 text-[12px] text-[var(--color-muted)]">{{ row.saleType ?? dryRun.suggestedSaleType }}</td>
               <td class="px-4 py-3 text-[13px] text-right font-semibold text-[var(--color-ink)]">{{ formatRM(row.amount) }}</td>
               <td class="px-4 py-3">
                 <select
@@ -311,7 +337,7 @@ const statusOptions = [
               </td>
             </tr>
             <tr v-if="rows.length === 0">
-              <td colspan="7" class="px-4 py-12 text-center text-[13px] text-[var(--color-muted-2)]">No rows parsed.</td>
+              <td colspan="8" class="px-4 py-12 text-center text-[13px] text-[var(--color-muted-2)]">No rows parsed.</td>
             </tr>
           </tbody>
         </table>

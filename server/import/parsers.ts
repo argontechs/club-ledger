@@ -17,11 +17,16 @@ export interface ParsedImportRow {
   amount: number
   /** Commission % the statement itself reports for this row, when present. */
   reportedRate?: number
+  /** Commission amount the statement itself reports for this row, when present. */
+  reportedCommission?: number
+  /** Sale type the statement assigns this row (formats with mixed types per file). */
+  saleType?: string
 }
 
 export interface ImportParseResult {
   ambassadorHint: string | null
-  headerTotal: number
+  /** Statement's printed gross total — null when the format doesn't print one. */
+  headerTotal: number | null
   /** Statement's own commission total, when the format prints one. */
   reportedCommissionTotal: number | null
   rows: ParsedImportRow[]
@@ -45,11 +50,30 @@ function toNumber(cell: string): number | null {
   return Number.isFinite(n) ? n : null
 }
 
+// Synthetic-id segments are capped so the assembled id always fits the
+// varchar(50) external_order_id column (overflow would 500 the import, or
+// worse, silently truncate and corrupt dedupe on non-strict MySQL). Slicing
+// can only merge two distinct rows into the same id, which the occurrence
+// suffix then disambiguates — no row is ever lost to the cap.
+function idSegment(raw: string, max: number): string {
+  return raw.replace(/[^A-Za-z0-9]/g, '').slice(0, max)
+}
+
 function syntheticOrderId(date: string, tableNumber: string, amount: number): string {
   const ymd = date.replace(/-/g, '').slice(2)
   const cents = Math.round(amount * 100)
-  const safeTable = tableNumber.replace(/[^A-Za-z0-9]/g, '')
-  return `M-${ymd}-${safeTable}-${cents}`
+  return `M-${ymd}-${idSegment(tableNumber, 20)}-${cents}`
+}
+
+// Statements legitimately repeat identical rows (two same-priced sales at the
+// same table on the same night), so synthetic ids must disambiguate repeats
+// or dedupe would silently drop real sales. Walk rows in DOCUMENT order: the
+// first occurrence keeps the bare id (stable for already-imported data),
+// repeats get -2, -3… — deterministic across re-parses of the same file.
+function disambiguateId(id: string, seen: Map<string, number>): string {
+  const n = (seen.get(id) ?? 0) + 1
+  seen.set(id, n)
+  return n === 1 ? id : `${id}-${n}`
 }
 
 // --------------------------------------------------------------------------
@@ -88,10 +112,12 @@ export const nonoTableParser: ImportParser = {
       rows.push({ date: m[1]!, externalOrderId: m[2]!, tableNumber: m[3]!, amount })
     }
     NONO_ORPHAN.lastIndex = 0
+    const seenIds = new Map<string, number>()
     while ((m = NONO_ORPHAN.exec(normalized))) {
       const amount = toNumber(m[4]!)
       if (amount === null) continue
-      rows.push({ date: m[1]!, externalOrderId: syntheticOrderId(m[1]!, m[2]!, amount), tableNumber: m[2]!, amount })
+      const id = disambiguateId(syntheticOrderId(m[1]!, m[2]!, amount), seenIds)
+      rows.push({ date: m[1]!, externalOrderId: id, tableNumber: m[2]!, amount })
     }
     rows.sort((a, b) => a.date.localeCompare(b.date) || a.externalOrderId.localeCompare(b.externalOrderId))
     return { ambassadorHint: hintMatch?.[1]?.trim() ?? null, headerTotal, reportedCommissionTotal, rows, errors: [] }
@@ -151,7 +177,80 @@ export const club404BgoParser: ImportParser = {
   },
 }
 
-export const importParsers: ImportParser[] = [nonoTableParser, club404BgoParser]
+// --------------------------------------------------------------------------
+// Format 3 — per-ambassador commission statement (exports from an operator's
+// previous tracking system, e.g. 404's monthly COMM files). Rows carry their
+// OWN sale type — Table and BGO sales mix in one file — so each row's type
+// flows through to commit instead of one type for the whole file. The
+// statement prints per-type commission totals and 'Amount paid', but NO
+// gross total, so headerTotal is null and reconciliation runs against the
+// commission figures instead.
+// --------------------------------------------------------------------------
+const STMT_ROW = /(\d{4}-\d{2}-\d{2}) (\S+) (\S+) RM ([\d,.]+) RM ([\d,.\-]+)/g
+const STMT_PAID = /Amount paid:\s*RM\s*([\d,.]+)/
+const STMT_HINT = /Ambassador\s+(.+?)\s+Statement period/
+
+export const commissionStatementParser: ImportParser = {
+  id: 'commission-statement-v1',
+  label: 'Commission statement (per-ambassador, mixed sale types)',
+  defaultSaleType: 'Table',
+  detect(text) {
+    const flat = text.replace(/\s+/g, ' ')
+    let score = 0
+    if (/Statement period/.test(flat)) score += 0.3
+    if (/Amount paid:/.test(flat)) score += 0.3
+    if (/\d{4}-\d{2}-\d{2} \S+ \S+ RM [\d,.]+ RM/.test(flat)) score += 0.4
+    return score
+  },
+  parse(normalized) {
+    const paid = normalized.match(STMT_PAID)
+    const reportedCommissionTotal = paid ? toNumber(paid[1]!) : null
+    const hint = normalized.match(STMT_HINT)
+
+    const rows: ParsedImportRow[] = []
+    const seenIds = new Map<string, number>()
+    let m: RegExpExecArray | null
+    STMT_ROW.lastIndex = 0
+    while ((m = STMT_ROW.exec(normalized))) {
+      const amount = toNumber(m[4]!)
+      if (amount === null) continue
+      const date = m[1]!
+      const saleType = m[2]!
+      const tableNumber = m[3]!
+      const ymd = date.replace(/-/g, '').slice(2)
+      // Type names can strip to nothing (e.g. Chinese labels) — fall back to
+      // 'X' so the id shape stays valid. Caps keep the id within varchar(50).
+      const safeType = idSegment(saleType, 12) || 'X'
+      const safeTable = idSegment(tableNumber, 10)
+      const id = disambiguateId(`S-${ymd}-${safeType}-${safeTable}-${Math.round(amount * 100)}`, seenIds)
+      rows.push({
+        date,
+        externalOrderId: id,
+        tableNumber,
+        amount,
+        saleType,
+        reportedCommission: toNumber(m[5]!) ?? undefined,
+      })
+    }
+
+    // Cross-check the statement against itself: its rows' commissions should
+    // sum to what it claims was paid. A mismatch means the statement has
+    // unlisted adjustments — the operator must see that before trusting it.
+    const errors: string[] = []
+    // Sum in integer cents — float accumulation across 70+ rows drifts by a cent.
+    const commissionSum = rows.reduce((a, x) => a + Math.round((x.reportedCommission ?? 0) * 100), 0) / 100
+    if (reportedCommissionTotal !== null && Math.abs(commissionSum - reportedCommissionTotal) > 0.05) {
+      errors.push(
+        `Statement says RM ${reportedCommissionTotal.toFixed(2)} was paid, but its rows' commissions sum to RM ${commissionSum.toFixed(2)} — it may contain unlisted adjustments.`,
+      )
+    }
+
+    rows.sort((a, b) => a.date.localeCompare(b.date) || a.externalOrderId.localeCompare(b.externalOrderId))
+    return { ambassadorHint: hint?.[1]?.trim() ?? null, headerTotal: null, reportedCommissionTotal, rows, errors }
+  },
+}
+
+export const importParsers: ImportParser[] = [nonoTableParser, club404BgoParser, commissionStatementParser]
 
 const MIN_CONFIDENCE = 0.5
 

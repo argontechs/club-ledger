@@ -15,11 +15,13 @@ export interface ParsedRow {
   tableNumber: string
   amount: number
   reportedRate?: number
+  reportedCommission?: number
+  saleType?: string
 }
 
 export interface ParseResult {
   ambassadorHint: string | null
-  headerTotal: number
+  headerTotal: number | null
   reportedCommissionTotal: number | null
   rows: ParsedRow[]
   errors: string[]
@@ -50,15 +52,24 @@ export async function parsePdfBuffer(buf: Buffer): Promise<ParseResult> {
   }
 }
 
+// Receipt ids: T+15 (Nono POS), A+15-20 (404 POS). Synthetic ids: M- (rows
+// the Nono statement prints without a receipt), S- (commission-statement
+// rows, which carry no receipt at all). Both synthetic shapes allow a
+// trailing -N occurrence suffix for legitimately repeated identical rows.
+// Segment bounds mirror the parser's idSegment caps so every accepted id is
+// guaranteed to fit the varchar(50) external_order_id column.
+const ORDER_ID_RE = /^(T\d{15}|A\d{15,20}|M-\d{6}-[A-Za-z0-9]{0,20}-\d{1,12}(?:-\d{1,4})?|S-\d{6}-[A-Za-z0-9]{1,12}-[A-Za-z0-9]{0,10}-\d{1,12}(?:-\d{1,4})?)$/
+
 const CommitSchema = z.object({
   status: z.enum(['draft', 'confirmed']).default('draft'),
   saleType: z.string().trim().min(1).max(40).optional(),
   rows: z.array(z.object({
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-    externalOrderId: z.string().regex(/^(T\d{15}|A\d{15,20}|M-\d{6}-[A-Za-z0-9]+-\d+)$/),
+    externalOrderId: z.string().regex(ORDER_ID_RE),
     tableNumber: z.string(),
     amount: z.number().positive(),
     ambassadorId: z.number().int().positive(),
+    saleType: z.string().trim().min(1).max(40).optional(),
   })).min(1),
 })
 
@@ -69,6 +80,13 @@ export const PDFImportService = {
     const dups = await SaleRepo.findByExternalOrderIds(clubId, orderIds)
     const dupSet = new Set(dups.map(d => d.externalOrderId))
     const reportedRates = Array.from(new Set(r.rows.map(x => x.reportedRate).filter((x): x is number => x !== undefined)))
+
+    // Formats with per-row sale types: surface any type the club hasn't
+    // configured yet, so the operator can add it before committing.
+    const rowTypes = Array.from(new Set(r.rows.map(x => x.saleType).filter((x): x is string => !!x)))
+    const activeTypes = new Set((await SaleTypeRepo.listByClub(clubId)).filter(t => t.isActive === 1).map(t => t.name))
+    const unknownTypes = rowTypes.filter(t => !activeTypes.has(t))
+
     return {
       format: r.format,
       formatId: r.formatId,
@@ -77,6 +95,9 @@ export const PDFImportService = {
       headerTotal: r.headerTotal,
       reportedCommissionTotal: r.reportedCommissionTotal,
       reportedRates,
+      rowTypes,
+      unknownTypes,
+      errors: r.errors,
       parsedTotal: r.rows.reduce((a, x) => a + x.amount, 0),
       duplicates: Array.from(dupSet),
       rows: r.rows,
@@ -118,13 +139,18 @@ export const PDFImportService = {
       rolesById.set(amb.roleId, role)
     }
 
-    // Imported rows take the requested sale type, defaulting to the club's
-    // first active type (the POS statement doesn't carry category info).
+    // Rows that carry their own sale type (mixed-type statements) keep it;
+    // the rest take the requested type, defaulting to the club's first
+    // active type. Every type involved must exist on this club.
     const clubTypes = (await SaleTypeRepo.listByClub(clubId)).filter(t => t.isActive === 1)
     if (clubTypes.length === 0) throw ApiError.validation({ saleType: 'This club has no active sale types' })
-    const saleType = v.saleType ?? clubTypes[0]!.name
-    if (!clubTypes.some(t => t.name === saleType)) {
-      throw ApiError.validation({ saleType: 'Unknown sale type for this club' })
+    const activeNames = new Set(clubTypes.map(t => t.name))
+    const fallbackType = v.saleType ?? clubTypes[0]!.name
+    const rowType = (r: { saleType?: string }) => r.saleType ?? fallbackType
+    const usedTypes = Array.from(new Set(v.rows.map(rowType)))
+    const missing = usedTypes.filter(t => !activeNames.has(t))
+    if (missing.length > 0) {
+      throw ApiError.validation({ saleType: `This club has no sale type named: ${missing.join(', ')} — add it in Settings first` })
     }
 
     const existing = await SaleRepo.findByExternalOrderIds(clubId, v.rows.map(r => r.externalOrderId))
@@ -136,17 +162,19 @@ export const PDFImportService = {
     const records = toInsert.map(r => {
       const amb = ambassadors.get(r.ambassadorId)!
       const role = rolesById.get(amb.roleId)!
+      const type = rowType(r)
       return {
         date: r.date,
         ambassadorId: r.ambassadorId,
         clubId,
-        type: saleType,
+        type,
         amount: r.amount.toFixed(2),
         notes: null,
-        tableNumber: r.tableNumber,
+        // PDF table tokens are unbounded; the column is varchar(20).
+        tableNumber: r.tableNumber.slice(0, 20),
         externalOrderId: r.externalOrderId,
         status: v.status,
-        confirmedCommissionRate: v.status === 'confirmed' ? resolveCommissionRate(role, saleType) : null,
+        confirmedCommissionRate: v.status === 'confirmed' ? resolveCommissionRate(role, type) : null,
         confirmedBonusRate: v.status === 'confirmed' ? role.bonusRate : null,
         confirmedAt: v.status === 'confirmed' ? new Date() : null,
         createdBy: actor.id,
