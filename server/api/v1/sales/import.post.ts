@@ -5,7 +5,7 @@ const MAX_PDF_BYTES = 20 * 1024 * 1024  // 20 MB
 
 export default defineEventHandler(async (event) => {
   const actor = event.context.user!
-  if (actor.roleName !== 'owner' && actor.roleName !== 'admin') {
+  if ((actor as any).tier !== 'admin') {
     throw ApiError.forbidden('Insufficient role')
   }
   const parts = await readMultipartFormData(event)

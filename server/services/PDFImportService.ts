@@ -2,7 +2,7 @@ import { extractText, getDocumentProxy } from 'unpdf'
 import { z } from 'zod'
 import { SaleRepo } from '~~/server/repositories/SaleRepository'
 import { AmbassadorRepo } from '~~/server/repositories/AmbassadorRepository'
-import { SettingsService } from '~~/server/services/SettingsService'
+import { RoleRepo } from '~~/server/repositories/RoleRepository'
 import { ApiError } from '~~/server/utils/errors'
 import { assertNotOwnerProtected, type Actor } from '~~/server/utils/permissions'
 
@@ -102,7 +102,10 @@ export const PDFImportService = {
     }
   },
 
-  async commit(actor: Actor & { id: number }, body: unknown) {
+  async commit(actor: Actor & { id: number; tier?: string }, body: unknown) {
+    if ((actor as any).tier !== 'admin') {
+      throw ApiError.forbidden('Insufficient role')
+    }
     const parsed = CommitSchema.safeParse(body)
     if (!parsed.success) {
       const issues = parsed.error.issues
@@ -124,16 +127,24 @@ export const PDFImportService = {
       ambassadors.set(id, amb)
     }
 
+    // Rates freeze from each ambassador's role at commit time, mirroring SaleService.confirm
+    const rolesById = new Map<number, any>()
+    for (const amb of ambassadors.values()) {
+      if (rolesById.has(amb.roleId)) continue
+      const role = await RoleRepo.findById(amb.roleId)
+      if (!role) throw ApiError.validation({ rows: `Ambassador (id=${amb.id}) has an unknown role` })
+      rolesById.set(amb.roleId, role)
+    }
+
     const existing = await SaleRepo.findByExternalOrderIds(v.rows.map(r => r.externalOrderId))
     const existingSet = new Set(existing.map(e => e.externalOrderId))
     const toInsert = v.rows.filter(r => !existingSet.has(r.externalOrderId))
 
     if (toInsert.length === 0) return { imported: 0, skipped: v.rows.length }
 
-    const bonusRate = await SettingsService.get('bonus_rate')
-
     const records = toInsert.map(r => {
       const amb = ambassadors.get(r.ambassadorId)!
+      const role = rolesById.get(amb.roleId)!
       return {
         date: r.date,
         ambassadorId: r.ambassadorId,
@@ -143,8 +154,8 @@ export const PDFImportService = {
         tableNumber: r.tableNumber,
         externalOrderId: r.externalOrderId,
         status: v.status,
-        confirmedCommissionRate: v.status === 'confirmed' ? amb.commissionRate : null,
-        confirmedBonusRate: v.status === 'confirmed' ? bonusRate : null,
+        confirmedCommissionRate: v.status === 'confirmed' ? role.baseRate : null,
+        confirmedBonusRate: v.status === 'confirmed' ? role.bonusRate : null,
         confirmedAt: v.status === 'confirmed' ? new Date() : null,
         createdBy: actor.id,
       }

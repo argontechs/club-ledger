@@ -1,0 +1,50 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+
+const inserted: any[] = []
+const role = { id: 7, name: 'VIP', tier: 'ambassador', baseRate: '9.50', bonusRate: '1.25' }
+
+vi.mock('~~/server/repositories/SaleRepository', () => ({
+  SaleRepo: {
+    findByExternalOrderIds: vi.fn(async () => []),
+    insertMany: vi.fn(async (rows: any[]) => { inserted.push(...rows) }),
+  },
+}))
+vi.mock('~~/server/repositories/AmbassadorRepository', () => ({
+  AmbassadorRepo: { findById: vi.fn(async (id: number) => ({ id, roleId: 7, deletedAt: null })) },
+}))
+vi.mock('~~/server/repositories/RoleRepository', () => ({
+  RoleRepo: { findById: vi.fn(async (id: number) => (id === 7 ? role : undefined)) },
+}))
+vi.mock('~~/server/utils/permissions', () => ({
+  assertNotOwnerProtected: vi.fn(async () => undefined),
+}))
+
+import { PDFImportService } from '~~/server/services/PDFImportService'
+
+const admin = { id: 1, roleName: 'admin', tier: 'admin' } as any
+const row = { date: '2026-04-02', externalOrderId: 'T260402000000001', tableNumber: 'L1', amount: 1000, ambassadorId: 5 }
+
+beforeEach(() => { inserted.length = 0 })
+
+describe('PDFImportService.commit', () => {
+  it('freezes rates from the ambassador role when importing as confirmed', async () => {
+    await PDFImportService.commit(admin, { status: 'confirmed', rows: [row] })
+    expect(inserted).toHaveLength(1)
+    expect(inserted[0].confirmedCommissionRate).toBe('9.50')
+    expect(inserted[0].confirmedBonusRate).toBe('1.25')
+    expect(inserted[0].confirmedAt).toBeInstanceOf(Date)
+  })
+
+  it('leaves rates null when importing as draft', async () => {
+    await PDFImportService.commit(admin, { status: 'draft', rows: [row] })
+    expect(inserted[0].confirmedCommissionRate).toBeNull()
+    expect(inserted[0].confirmedBonusRate).toBeNull()
+    expect(inserted[0].confirmedAt).toBeNull()
+  })
+
+  it('rejects non-admin-tier actors', async () => {
+    await expect(
+      PDFImportService.commit({ id: 2, roleName: 'whatever', tier: 'ambassador' } as any, { status: 'draft', rows: [row] }),
+    ).rejects.toMatchObject({ statusCode: 403 })
+  })
+})
