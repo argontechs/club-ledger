@@ -63,8 +63,8 @@ export const tourChapters: TourChapter[] = [
     steps: [
       {
         target: 'roles-table',
-        title: 'Commission packages',
-        body: 'Each role carries a base rate, an optional bonus, and an optional KPI gate. These are per-club — every club in the switcher has its own set.',
+        title: 'Rate plans',
+        body: 'Each plan carries commission rates (with optional per-type rates), an optional bonus, and an optional KPI gate. Plans are per-club — every club in the switcher has its own set.',
       },
     ],
   },

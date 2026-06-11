@@ -4,6 +4,7 @@ import { useDB, schema } from '~~/server/db/client'
 import { SaleRepo } from '~~/server/repositories/SaleRepository'
 import { AmbassadorRepo } from '~~/server/repositories/AmbassadorRepository'
 import { SaleTypeService } from '~~/server/services/SaleTypeService'
+import { resolveCommissionRate } from '~~/server/services/RoleService'
 import { ApiError } from '~~/server/utils/errors'
 import { assertNotOwnerProtected, assertCan, type Actor } from '~~/server/utils/permissions'
 
@@ -85,7 +86,7 @@ export const SaleService = {
     if (!role) throw ApiError.notFound('Role')
     await SaleRepo.update(id, {
       status: 'confirmed',
-      confirmedCommissionRate: role.baseRate,
+      confirmedCommissionRate: resolveCommissionRate(role, s.type),
       confirmedBonusRate: role.bonusRate,
       confirmedAt: new Date(),
     } as any)

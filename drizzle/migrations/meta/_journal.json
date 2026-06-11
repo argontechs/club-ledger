@@ -64,6 +64,13 @@
       "when": 1781175197025,
       "tag": "0008_user_access",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1781184532903,
+      "tag": "0009_rate_overrides",
+      "breakpoints": true
     }
   ]
 }

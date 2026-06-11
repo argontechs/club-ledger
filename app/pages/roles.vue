@@ -27,21 +27,26 @@ function fmtKpi(r: any) {
   if (!r.requiresKpi || !r.kpiThreshold) return ''
   return `KPI: hit ${currencySymbol()} ${Number(r.kpiThreshold).toLocaleString()}`
 }
+function fmtOverrides(r: any) {
+  const o = r.rateOverrides
+  if (!o || !Object.keys(o).length) return ''
+  return Object.entries(o).map(([t, v]) => `${t} ${Number(v)}%`).join(' · ')
+}
 </script>
 
 <template>
   <div class="space-y-6">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
       <p class="text-[13px] text-[var(--color-muted)]">
-        Configure base commission, bonus, and KPI thresholds for each role.
+        Each rate plan bundles the commission rates, bonus, and KPI an ambassador earns under — per club.
       </p>
-      <AppButton @click="showAdd = true">+ New role</AppButton>
+      <AppButton @click="showAdd = true">+ New plan</AppButton>
     </div>
 
     <div data-tour="roles-table">
-    <AppTable :rows="roles ?? []" empty-text="No roles yet — a role bundles the base rate, bonus, and KPI an ambassador earns under.">
+    <AppTable :rows="roles ?? []" empty-text="No rate plans yet — a plan bundles the rates, bonus, and KPI an ambassador earns under.">
       <template #empty-action>
-        <AppButton size="sm" @click="showAdd = true">+ New role</AppButton>
+        <AppButton size="sm" @click="showAdd = true">+ New plan</AppButton>
       </template>
       <template #head>
         <th class="px-4 py-3 text-left text-[10px] uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Name</th>
@@ -58,7 +63,10 @@ function fmtKpi(r: any) {
           </span>
         </td>
         <td class="px-4 py-3 text-[13px] text-[var(--color-muted)] capitalize">{{ row.tier }}</td>
-        <td class="px-4 py-3 text-[13px] text-right font-semibold text-[var(--color-ink)] tabular">{{ Number(row.baseRate).toFixed(2) }}%</td>
+        <td class="px-4 py-3 text-[13px] text-right font-semibold text-[var(--color-ink)] tabular">
+          {{ Number(row.baseRate).toFixed(2) }}%
+          <div v-if="fmtOverrides(row)" class="text-[10.5px] font-normal text-[var(--color-muted-2)] tabular">{{ fmtOverrides(row) }}</div>
+        </td>
         <td class="px-4 py-3 text-[12px] text-[var(--color-muted)]">
           <div>{{ fmtBonus(row) }}</div>
           <div v-if="fmtKpi(row)" class="text-[var(--color-muted-2)]">{{ fmtKpi(row) }}</div>

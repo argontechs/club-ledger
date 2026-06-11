@@ -1,0 +1,1 @@
+ALTER TABLE `roles` ADD `rate_overrides` json;

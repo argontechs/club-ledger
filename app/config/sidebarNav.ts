@@ -46,7 +46,7 @@ export const mgmtSidebarNav: NavItem[] = [
   { to: '/ambassadors',  label: 'Ambassadors', icon: 'ambassadors', module: 'ambassadors' },
   { to: '/teams',        label: 'Teams',       icon: 'teams',       module: 'teams' },
   { to: '/access',       label: 'Access',      icon: 'access',      module: 'access' },
-  { to: '/roles',        label: 'Roles',       icon: 'roles',       module: 'roles' },
+  { to: '/roles',        label: 'Rate plans',  icon: 'roles',       module: 'roles' },
   { to: '/settings',     label: 'Settings',    icon: 'settings',    module: 'settings' },
 ]
 

@@ -4,6 +4,7 @@ import { SaleRepo } from '~~/server/repositories/SaleRepository'
 import { AmbassadorRepo } from '~~/server/repositories/AmbassadorRepository'
 import { RoleRepo } from '~~/server/repositories/RoleRepository'
 import { SaleTypeRepo } from '~~/server/repositories/SaleTypeRepository'
+import { resolveCommissionRate } from '~~/server/services/RoleService'
 import { ApiError } from '~~/server/utils/errors'
 import { assertNotOwnerProtected, assertCan, type Actor } from '~~/server/utils/permissions'
 
@@ -167,7 +168,7 @@ export const PDFImportService = {
         tableNumber: r.tableNumber,
         externalOrderId: r.externalOrderId,
         status: v.status,
-        confirmedCommissionRate: v.status === 'confirmed' ? role.baseRate : null,
+        confirmedCommissionRate: v.status === 'confirmed' ? resolveCommissionRate(role, saleType) : null,
         confirmedBonusRate: v.status === 'confirmed' ? role.bonusRate : null,
         confirmedAt: v.status === 'confirmed' ? new Date() : null,
         createdBy: actor.id,

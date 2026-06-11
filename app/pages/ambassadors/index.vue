@@ -211,7 +211,7 @@ const isAdmin = computed(() => auth.user?.tier === 'admin' && !(auth.user as any
       <template #head>
         <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Name</th>
         <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Team</th>
-        <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Role</th>
+        <th class="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-2)]">Rate plan</th>
         <th class="px-4 py-3" />
       </template>
       <template #row="{ row }">
@@ -278,7 +278,7 @@ const isAdmin = computed(() => auth.user?.tier === 'admin' && !(auth.user as any
             <AppSelect
               v-model="form.roleId"
               :options="(rolesList ?? []).filter(r => r.tier === 'ambassador' || r.id === form.roleId).map(r => ({ value: r.id, label: r.name }))"
-              label="Role"
+              label="Rate plan"
             />
           </div>
         </section>
@@ -314,7 +314,7 @@ const isAdmin = computed(() => auth.user?.tier === 'admin' && !(auth.user as any
           <AppSelect
             v-model="importRoleId"
             :options="ambassadorRoles.map(r => ({ value: r.id, label: r.name }))"
-            label="Role in this club"
+            label="Rate plan in this club"
           />
         </div>
         <p class="text-[12px] text-[var(--color-muted)]">

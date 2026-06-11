@@ -34,6 +34,10 @@ export const roles = mysqlTable('roles', {
   // Owner-protection anchor: replaces literal role-name checks ('owner') so
   // companies can rename roles without silently disabling protections.
   isOwner: tinyint('is_owner').default(0).notNull(),
+  // Optional per-sale-type rate overrides: { [saleTypeName]: '5.00' }.
+  // A sale type without an entry earns the plan's base rate. Resolved at
+  // confirmation time — the chosen rate freezes onto the sale as always.
+  rateOverrides: json('rate_overrides').$type<Record<string, string>>(),
   ...ts(),
 }, (t) => ({
   clubName: unique('roles_club_name_unique').on(t.clubId, t.name),

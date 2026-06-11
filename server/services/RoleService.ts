@@ -10,7 +10,19 @@ const PayloadSchema = z.object({
   bonusRate: z.number().min(0).max(100).nullable(),
   requiresKpi: z.boolean(),
   kpiThreshold: z.number().min(0).nullable(),
+  // Per-sale-type rate overrides; types without an entry use baseRate.
+  rateOverrides: z.record(z.string().trim().min(1).max(40), z.number().min(0).max(100))
+    .refine(o => Object.keys(o).length <= 20, 'Too many overrides')
+    .nullish(),
 })
+
+/** The commission rate a sale of `saleType` earns under this plan. */
+export function resolveCommissionRate(
+  role: { baseRate: string; rateOverrides?: Record<string, string> | null },
+  saleType: string,
+): string {
+  return role.rateOverrides?.[saleType] ?? role.baseRate
+}
 export type RolePayload = z.infer<typeof PayloadSchema>
 
 function toSnake(s: string): string {
@@ -77,6 +89,9 @@ export const RoleService = {
       kpiThreshold: v.kpiThreshold === null ? null : v.kpiThreshold.toFixed(2),
       requiresKpi: v.requiresKpi ? 1 : 0,
       clubId,
+      rateOverrides: v.rateOverrides
+        ? Object.fromEntries(Object.entries(v.rateOverrides).map(([k, n]) => [k, n.toFixed(2)]))
+        : null,
     })
     return await RoleRepo.findById((r as any)[0].insertId)
   },
@@ -114,6 +129,11 @@ export const RoleService = {
       bonusRate: v.bonusRate === null ? null : v.bonusRate.toFixed(2),
       kpiThreshold: v.kpiThreshold === null ? null : v.kpiThreshold.toFixed(2),
       requiresKpi: v.requiresKpi ? 1 : 0,
+      rateOverrides: v.rateOverrides === undefined ? undefined : (
+        v.rateOverrides
+          ? Object.fromEntries(Object.entries(v.rateOverrides).map(([k, n]) => [k, n.toFixed(2)]))
+          : null
+      ),
     })
     return await this.get(id)
   },

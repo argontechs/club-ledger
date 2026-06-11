@@ -6,7 +6,7 @@ const sale = {
   confirmedCommissionRate: null, confirmedBonusRate: null,
 } as any
 
-const role = { id: 7, name: 'Ambassador', tier: 'ambassador', baseRate: '8.00', bonusRate: '1.00' }
+const role = { id: 7, name: 'Ambassador', tier: 'ambassador', baseRate: '8.00', bonusRate: '1.00', rateOverrides: { BGO: '5.00' } }
 
 vi.mock('~~/server/repositories/SaleRepository', () => ({
   SaleRepo: {
@@ -46,7 +46,7 @@ import { SaleService } from '~~/server/services/SaleService'
 import { SaleRepo } from '~~/server/repositories/SaleRepository'
 
 describe('SaleService.confirm', () => {
-  beforeEach(() => { sale.status = 'draft'; sale.confirmedCommissionRate = null; sale.confirmedBonusRate = null })
+  beforeEach(() => { sale.status = 'draft'; sale.type = 'Table'; sale.confirmedCommissionRate = null; sale.confirmedBonusRate = null })
 
   it('freezes commission and bonus rate from ambassador role on confirm', async () => {
     await SaleService.confirm({ id: 9, roleName: 'admin', tier: 'admin' } as any, 1, 1)
@@ -60,6 +60,14 @@ describe('SaleService.confirm', () => {
   it('refuses to confirm an already-confirmed sale', async () => {
     sale.status = 'confirmed'
     await expect(SaleService.confirm({ id: 9, roleName: 'admin', tier: 'admin' } as any, 1, 1)).rejects.toThrow()
+  })
+
+  it('freezes the per-type override rate when the sale type has one', async () => {
+    sale.type = 'BGO'
+    await SaleService.confirm({ id: 9, roleName: 'admin', tier: 'admin' } as any, 1, 1)
+    expect(SaleRepo.update).toHaveBeenCalledWith(1, expect.objectContaining({
+      confirmedCommissionRate: '5.00',
+    }))
   })
 
   it('treats sales from another club as missing (404)', async () => {

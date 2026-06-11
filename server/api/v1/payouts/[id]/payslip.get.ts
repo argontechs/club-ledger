@@ -11,7 +11,10 @@ export default defineEventHandler(async (event) => {
   const p = await PayoutRepo.findById(id)
   if (!p || p.clubId !== clubId || !p.payslipPath) throw ApiError.notFound('Payslip')
   const data = await readFileFromStorage(p.payslipPath)
+  // The stored basename carries a collision-avoidance timestamp prefix —
+  // strip it so downloads get the clean '2026-05_PAYSLIP_Name.pdf' name.
+  const clean = (p.payslipPath.split('/').pop() ?? 'payslip.pdf').replace(/^\d+_/, '')
   setHeader(event, 'content-type', 'application/pdf')
-  setHeader(event, 'content-disposition', `attachment; filename="${p.payslipPath.split('/').pop()}"`)
+  setHeader(event, 'content-disposition', `attachment; filename="${clean}"`)
   return data
 })

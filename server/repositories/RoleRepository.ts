@@ -28,6 +28,7 @@ export const RoleRepo = {
     requiresKpi: number
     isSystem?: number
     clubId?: number | null
+    rateOverrides?: Record<string, string> | null
   }) {
     return useDB().insert(schema.roles).values({
       name: values.name,
@@ -38,6 +39,7 @@ export const RoleRepo = {
       requiresKpi: values.requiresKpi,
       isSystem: values.isSystem ?? 0,
       clubId: values.clubId ?? null,
+      rateOverrides: values.rateOverrides ?? null,
     })
   },
   update(id: number, patch: Partial<{
@@ -47,6 +49,7 @@ export const RoleRepo = {
     bonusRate: string | null
     kpiThreshold: string | null
     requiresKpi: number
+    rateOverrides: Record<string, string> | null
   }>) {
     return useDB().update(schema.roles).set({ ...patch, updatedAt: new Date() }).where(eq(schema.roles.id, id))
   },
