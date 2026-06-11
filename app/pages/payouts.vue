@@ -8,7 +8,7 @@ import {
   PaperClipIcon,
   ClipboardDocumentIcon,
 } from '@heroicons/vue/24/outline'
-import { formatRM } from '~/utils/currency'
+import { formatRM, formatAmount, currencySymbol } from '~/utils/currency'
 import { currentMonth, formatDate } from '~/utils/dateFormat'
 import { downloadAuthed } from '~/utils/download'
 definePageMeta({ middleware: ['role'] })
@@ -64,8 +64,8 @@ const summary = computed(() => {
   const unpaidAmt = unpaid.reduce((a, r) => a + Number(r.amount || 0), 0)
   return [
     { label: 'Payouts this month', value: list.length, tone: 'ink' as const },
-    { label: 'Paid out', prefix: 'RM', value: formatRM(paidAmt).replace(/^RM\s*/, '') },
-    { label: 'Outstanding', prefix: 'RM', value: formatRM(unpaidAmt).replace(/^RM\s*/, ''), tone: unpaidAmt > 0 ? 'brand' as const : undefined },
+    { label: 'Paid out', prefix: currencySymbol(), value: formatAmount(paidAmt) },
+    { label: 'Outstanding', prefix: currencySymbol(), value: formatAmount(unpaidAmt), tone: unpaidAmt > 0 ? 'brand' as const : undefined },
     { label: 'Recipients', value: new Set(list.map(r => r.ambassadorId)).size },
   ]
 })

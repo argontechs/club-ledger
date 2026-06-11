@@ -3,7 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import Chart from 'chart.js/auto'
 import { TrophyIcon, ArrowTrendingUpIcon, BanknotesIcon, CheckBadgeIcon } from '@heroicons/vue/24/outline'
 import { currentMonth } from '~/utils/dateFormat'
-import { formatRM, currencySymbol } from '~/utils/currency'
+import { formatRM, formatAmount, currencySymbol } from '~/utils/currency'
 
 const branding = inject<{ logoUrl: string | null; venueName: string } | null>('branding', null)
 import { useAuthStore } from '~/stores/auth'
@@ -234,7 +234,7 @@ onBeforeUnmount(() => {
 
     <!-- KPI strip — inverted hero + three accents -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-      <AppCard tone="inverted" grain label="Total club sales" :prefix="currencySymbol()" :value="formatRM(totalSales).replace(currencySymbol() + ' ', '')">
+      <AppCard tone="inverted" grain label="Total club sales" :prefix="currencySymbol()" :value="formatAmount(totalSales)">
         <template #icon>
           <span class="w-8 h-8 rounded-lg bg-white/8 flex items-center justify-center text-white/70">
             <ArrowTrendingUpIcon class="w-4 h-4" />
@@ -243,7 +243,7 @@ onBeforeUnmount(() => {
         <p class="mt-3 text-[11px] text-white/55 tabular">Across all confirmed entries · {{ monthLabel }}</p>
       </AppCard>
 
-      <AppCard label="Commissions paid" :prefix="currencySymbol()" :value="formatRM(totalCommissions).replace(currencySymbol() + ' ', '')">
+      <AppCard label="Commissions paid" :prefix="currencySymbol()" :value="formatAmount(totalCommissions)">
         <template #icon>
           <span class="w-8 h-8 rounded-lg bg-[var(--color-surface-2)] flex items-center justify-center text-[var(--color-muted)]">
             <BanknotesIcon class="w-4 h-4" />
@@ -252,7 +252,7 @@ onBeforeUnmount(() => {
         <p class="mt-3 text-[11px] text-[var(--color-muted-2)] tabular">Base + bonus across all earners</p>
       </AppCard>
 
-      <AppCard label="My commission" :prefix="currencySymbol()" :value="formatRM(myCommission).replace(currencySymbol() + ' ', '')">
+      <AppCard label="My commission" :prefix="currencySymbol()" :value="formatAmount(myCommission)">
         <template #icon>
           <span class="w-8 h-8 rounded-lg bg-[var(--color-brand-soft)] flex items-center justify-center text-[var(--color-brand-dark)]">
             <TrophyIcon class="w-4 h-4" />

@@ -65,7 +65,7 @@ async function remove(row: any) {
   }
 }
 
-const isAdmin = computed(() => auth.user?.role === 'admin')
+const isAdmin = computed(() => auth.user?.tier === 'admin' && !(auth.user as any)?.isOwner)
 function isOwner(u: any) { return u.isOwner === 1 || u.isOwner === true }
 
 const roleTone = (r: string) => {

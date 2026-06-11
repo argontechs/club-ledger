@@ -23,18 +23,23 @@ async function main() {
   }
   const clubId = club!.id
 
-  // 2. Staff roles (club_id NULL — referenced by user logins)
+  // 2. Staff roles (club_id NULL — referenced by user logins). The owner
+  // role carries is_owner=1: that flag, not the name, anchors owner-protection.
   const staffSeeds = [
-    { name: 'owner', tier: 'admin' as const, isSystem: 1 },
-    { name: 'admin', tier: 'admin' as const, isSystem: 1 },
+    { name: 'owner', tier: 'admin' as const, isSystem: 1, isOwner: 1 },
+    { name: 'admin', tier: 'admin' as const, isSystem: 1, isOwner: 0 },
   ]
   for (const r of staffSeeds) {
     const existing = await db.select().from(schema.roles)
       .where(and(eq(schema.roles.name, r.name), isNull(schema.roles.clubId)))
     if (existing.length === 0) {
       await db.insert(schema.roles).values({
-        name: r.name, tier: r.tier, baseRate: '0.00', bonusRate: null, isSystem: r.isSystem, clubId: null,
+        name: r.name, tier: r.tier, baseRate: '0.00', bonusRate: null,
+        isSystem: r.isSystem, isOwner: r.isOwner, clubId: null,
       })
+    } else if (r.isOwner === 1 && existing[0]!.isOwner !== 1) {
+      // Heal installs where the migration backfill ran before the seed.
+      await db.update(schema.roles).set({ isOwner: 1 }).where(eq(schema.roles.id, existing[0]!.id))
     }
   }
 

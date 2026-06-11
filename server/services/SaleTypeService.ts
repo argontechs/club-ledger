@@ -48,6 +48,12 @@ export const SaleTypeService = {
         throw ApiError.conflict('A sale type with that name already exists in this club')
       }
     }
+    if (v.isActive === false && t.isActive === 1) {
+      const active = (await SaleTypeRepo.listByClub(clubId)).filter(x => x.isActive === 1)
+      if (active.length <= 1) {
+        throw ApiError.conflict('A club needs at least one active sale type')
+      }
+    }
     await SaleTypeRepo.update(id, {
       ...(v.name !== undefined ? { name: v.name } : {}),
       ...(v.sortOrder !== undefined ? { sortOrder: v.sortOrder } : {}),

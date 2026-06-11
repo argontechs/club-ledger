@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { formatRM } from '~/utils/currency'
+import { formatRM, formatAmount, currencySymbol } from '~/utils/currency'
 import { formatDate } from '~/utils/dateFormat'
 import { useAuthStore } from '~/stores/auth'
 
@@ -38,7 +38,7 @@ const summary = computed(() => {
   const ambIds = new Set(list.map(r => r.ambassadorId))
   return [
     { label: 'Confirmed', value: confirmed.length, tone: 'ink' as const },
-    { label: 'Total this month', prefix: 'RM', value: formatRM(total).replace(/^RM\s*/, '') },
+    { label: 'Total this month', prefix: currencySymbol(), value: formatAmount(total) },
     { label: 'Active ambassadors', value: ambIds.size },
     { label: 'Drafts pending', value: drafts.length },
   ]

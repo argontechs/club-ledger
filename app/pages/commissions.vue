@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { formatRM } from '~/utils/currency'
+import { formatRM, formatAmount, currencySymbol } from '~/utils/currency'
 
 const month = ref('')
 const ambassadorFilter = ref<number | ''>('')
@@ -30,9 +30,9 @@ const summary = computed(() => {
   const totalBonus = list.reduce((a, r) => a + Number(r.bonus || 0), 0)
   return [
     { label: 'Earners', value: list.length, tone: 'ink' as const },
-    { label: 'Sales pool', prefix: 'RM', value: formatRM(totalOwnSales).replace(/^RM\s*/, '') },
-    { label: 'Commissions', prefix: 'RM', value: formatRM(totalCommission).replace(/^RM\s*/, '') },
-    { label: 'Owner+admin bonus', prefix: 'RM', value: formatRM(totalBonus).replace(/^RM\s*/, '') },
+    { label: 'Sales pool', prefix: currencySymbol(), value: formatAmount(totalOwnSales) },
+    { label: 'Commissions', prefix: currencySymbol(), value: formatAmount(totalCommission) },
+    { label: 'Bonuses', prefix: currencySymbol(), value: formatAmount(totalBonus) },
   ]
 })
 

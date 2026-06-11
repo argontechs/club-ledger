@@ -11,10 +11,15 @@ export function currencySymbol(): string {
   return symbol
 }
 
-export function formatRM(value: number | string | null | undefined): string {
+// Amount without the symbol — for UI slots that render the symbol separately.
+export function formatAmount(value: number | string | null | undefined): string {
   const n = typeof value === 'string' ? Number(value) : (value ?? 0)
-  if (!Number.isFinite(n)) return `${symbol} 0.00`
-  return `${symbol} ` + n.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  if (!Number.isFinite(n)) return '0.00'
+  return n.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+export function formatRM(value: number | string | null | undefined): string {
+  return `${symbol} ` + formatAmount(value)
 }
 
 export const formatCurrency = formatRM

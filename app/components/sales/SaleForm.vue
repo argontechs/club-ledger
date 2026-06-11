@@ -46,6 +46,10 @@ function submit() {
     formError.value = 'Pick an ambassador before saving.'
     return
   }
+  if (!type.value) {
+    formError.value = 'Select a sale type.'
+    return
+  }
   const trimmedTable = tableNumber.value.trim()
   if (!trimmedTable) {
     formError.value = 'Table number is required.'

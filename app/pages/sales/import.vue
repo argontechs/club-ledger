@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { formatRM } from '~/utils/currency'
+import { formatRM, formatAmount, currencySymbol } from '~/utils/currency'
 import { formatDate } from '~/utils/dateFormat'
 import { useAuthStore } from '~/stores/auth'
 import {
@@ -216,8 +216,8 @@ const statusOptions = [
 
     <!-- Summary cards -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-      <AppCard label="PDF total" :prefix="'RM'" :value="formatRM(dryRun.headerTotal).replace(/^RM\s*/, '')" />
-      <AppCard label="Parsed total" :prefix="'RM'" :value="formatRM(dryRun.parsedTotal).replace(/^RM\s*/, '')" />
+      <AppCard label="PDF total" :prefix="currencySymbol()" :value="formatAmount(dryRun.headerTotal)" />
+      <AppCard label="Parsed total" :prefix="currencySymbol()" :value="formatAmount(dryRun.parsedTotal)" />
       <AppCard tone="brand" label="Will import" :value="readyRows.length" />
       <AppCard label="Duplicates" :value="dryRun.duplicates.length" />
     </div>
