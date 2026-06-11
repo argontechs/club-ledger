@@ -74,7 +74,8 @@ export const AmbassadorService = {
     if ((actor as any).tier !== 'admin') {
       throw ApiError.forbidden('Insufficient role')
     }
-    const a = await this.get(id)
+    const a = await AmbassadorRepo.findById(id)
+    if (!a) throw ApiError.notFound('Ambassador')
     await assertNotOwnerProtected(actor, { kind: 'ambassador', ambassadorId: id })
     if (a.isProtected && actor.roleName !== 'owner') throw ApiError.forbidden('Protected ambassador')
     const v = parseOrThrow(UpdateSchema, body)
@@ -97,7 +98,8 @@ export const AmbassadorService = {
     if ((actor as any).tier !== 'admin') {
       throw ApiError.forbidden('Insufficient role')
     }
-    const a = await this.get(id)
+    const a = await AmbassadorRepo.findById(id)
+    if (!a) throw ApiError.notFound('Ambassador')
     await assertNotOwnerProtected(actor, { kind: 'ambassador', ambassadorId: id })
     if (a.isProtected) throw ApiError.conflict('Protected ambassador cannot be deleted')
     await AmbassadorRepo.softDelete(id)

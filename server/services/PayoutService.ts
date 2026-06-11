@@ -16,12 +16,16 @@ const CreateSchema = z.object({
   markPaid: z.boolean().optional(),
 })
 
+function assertAdminTier(actor: Actor & { tier?: string }) {
+  if ((actor as any).tier !== 'admin') {
+    throw ApiError.forbidden('Insufficient role')
+  }
+}
+
 export const PayoutService = {
   list: PayoutRepo.list,
   async create(actor: Actor & { id: number; roleName: string }, body: unknown) {
-    if ((actor as any).tier !== 'admin') {
-      throw ApiError.forbidden('Insufficient role')
-    }
+    assertAdminTier(actor)
     const v = CreateSchema.parse(body)
     await assertNotOwnerProtected(actor, { kind: 'payout', ambassadorId: v.ambassadorId })
     const dups = await PayoutRepo.list({ ambassadorId: v.ambassadorId, month: v.periodMonth })
@@ -39,6 +43,7 @@ export const PayoutService = {
     return await PayoutRepo.findById((r as any)[0].insertId)
   },
   async markPaid(actor: Actor, id: number) {
+    assertAdminTier(actor)
     const p = await PayoutRepo.findById(id)
     if (!p) throw ApiError.notFound('Payout')
     await assertNotOwnerProtected(actor, { kind: 'payout', ambassadorId: p.ambassadorId })
@@ -46,6 +51,7 @@ export const PayoutService = {
     return await PayoutRepo.findById(id)
   },
   async markUnpaid(actor: Actor, id: number) {
+    assertAdminTier(actor)
     const p = await PayoutRepo.findById(id)
     if (!p) throw ApiError.notFound('Payout')
     await assertNotOwnerProtected(actor, { kind: 'payout', ambassadorId: p.ambassadorId })
@@ -53,6 +59,7 @@ export const PayoutService = {
     return await PayoutRepo.findById(id)
   },
   async remove(actor: Actor, id: number) {
+    assertAdminTier(actor)
     const p = await PayoutRepo.findById(id)
     if (!p) throw ApiError.notFound('Payout')
     await assertNotOwnerProtected(actor, { kind: 'payout', ambassadorId: p.ambassadorId })
@@ -64,6 +71,7 @@ export const PayoutService = {
   },
 
   async addReceipt(actor: Actor, id: number, file: { name: string; mime: string; data: Buffer }) {
+    assertAdminTier(actor)
     const p = await PayoutRepo.findById(id)
     if (!p) throw ApiError.notFound('Payout')
     await assertNotOwnerProtected(actor, { kind: 'payout', ambassadorId: p.ambassadorId })
@@ -93,6 +101,7 @@ export const PayoutService = {
   },
 
   async deleteReceipt(actor: Actor, id: number, index: number) {
+    assertAdminTier(actor)
     const p = await PayoutRepo.findById(id)
     if (!p) throw ApiError.notFound('Payout')
     await assertNotOwnerProtected(actor, { kind: 'payout', ambassadorId: p.ambassadorId })
@@ -112,9 +121,7 @@ export const PayoutService = {
       })).min(1).max(100),
       markPaid: z.boolean().optional(),
     })
-    if ((actor as any).tier !== 'admin') {
-      throw ApiError.forbidden('Insufficient role')
-    }
+    assertAdminTier(actor)
     const v = Schema.parse(body)
     const created: any[] = []
 

@@ -2,10 +2,7 @@ import { drizzle } from 'drizzle-orm/mysql2'
 import mysql from 'mysql2/promise'
 import * as schema from './schema'
 
-let _db: ReturnType<typeof drizzle> | null = null
-
-export function useDB() {
-  if (_db) return _db
+function createDb() {
   const { db: cfg } = useRuntimeConfig()
   const pool = mysql.createPool({
     host: cfg.host,
@@ -16,8 +13,15 @@ export function useDB() {
     connectionLimit: 10,
     decimalNumbers: false,
   })
-  _db = drizzle(pool, { schema, mode: 'default' })
-  return _db
+  return drizzle(pool, { schema, mode: 'default' })
+}
+
+let _db: ReturnType<typeof createDb> | null = null
+
+export function useDB() {
+  const db = _db ?? createDb()
+  _db = db
+  return db
 }
 
 export type DB = ReturnType<typeof useDB>
