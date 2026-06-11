@@ -3,16 +3,23 @@ import { useDB, schema } from '~~/server/db/client'
 import { verifyToken } from '~~/server/utils/jwt'
 import { ApiError } from '~~/server/utils/errors'
 
-const PUBLIC_PATHS = [
+// Prefix-matched namespaces vs exact public endpoints — setup must be exact
+// so any future /api/v1/setup* route is authenticated by default.
+const PUBLIC_PREFIXES = [
   '/api/v1/auth/login',
   '/api/v1/branding',
+]
+const PUBLIC_EXACT = [
   '/api/v1/setup',
+  '/api/v1/setup/status',
 ]
 
 export default defineEventHandler(async (event) => {
   const url = event.node.req.url || ''
   if (!url.startsWith('/api/v1')) return
-  if (PUBLIC_PATHS.some(p => url.startsWith(p))) return
+  if (PUBLIC_PREFIXES.some(p => url.startsWith(p))) return
+  const path = url.split('?')[0]
+  if (PUBLIC_EXACT.includes(path)) return
 
   const auth = getHeader(event, 'authorization') || ''
   const match = auth.match(/^Bearer\s+(.+)$/i)

@@ -4,6 +4,7 @@ import { useDB, schema } from '~~/server/db/client'
 import { ApiError } from '~~/server/utils/errors'
 
 const Schema = z.record(z.string().min(1).max(60), z.enum(['done', 'skipped']))
+  .refine(o => Object.keys(o).length <= 20, 'Too many chapters in one patch')
 
 // Merges chapter results into the caller's own onboarding state.
 export default defineEventHandler(async (event) => {

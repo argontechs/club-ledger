@@ -98,11 +98,16 @@ export const SetupService = {
     await SettingsService.set('currency_symbol', v.company.currencySymbol)
     if (v.company.name) await SettingsService.set('company_name', v.company.name)
 
-    // 4. Owner login
-    const passwordHash = await hashPassword(v.owner.password)
-    await db.insert(schema.users).values({
-      email: v.owner.email, passwordHash, name: v.owner.name, roleId: ownerRole.id,
-    })
+    // 4. Owner login — existence-checked so a concurrent or retried setup
+    // surfaces cleanly instead of hitting the unique-email constraint.
+    const existingUser = await db.select({ id: schema.users.id }).from(schema.users)
+      .where(eq(schema.users.email, v.owner.email)).limit(1)
+    if (existingUser.length === 0) {
+      const passwordHash = await hashPassword(v.owner.password)
+      await db.insert(schema.users).values({
+        email: v.owner.email, passwordHash, name: v.owner.name, roleId: ownerRole.id,
+      })
+    }
 
     return { ok: true }
   },
