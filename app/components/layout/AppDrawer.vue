@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed, watch, inject } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowRightOnRectangleIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import { mainSidebarNav, mgmtSidebarNav, sidebarIconMap, type NavItem } from '~/config/sidebarNav'
@@ -7,6 +7,7 @@ import { useAuthStore } from '~/stores/auth'
 
 const drawer = useDrawer()
 const auth = useAuthStore()
+const branding = inject<{ logoUrl: string | null; venueName: string } | null>('branding', null)
 const route = useRoute()
 const router = useRouter()
 
@@ -53,14 +54,15 @@ watch(() => route.path, () => { drawer.value = false })
           <div class="flex items-center gap-2.5 min-w-0">
             <div class="relative w-11 h-11 rounded-xl bg-[var(--color-ink)] overflow-hidden flex items-center justify-center shrink-0 ring-1 ring-black/10">
               <img
-                src="~/assets/img/nono-logo.png"
-                alt="Nono Club"
+                v-if="branding?.logoUrl"
+                :src="branding.logoUrl"
+                alt="Logo"
                 class="w-full h-full object-cover select-none pointer-events-none"
               >
               <span class="absolute -right-1 -bottom-1 w-3 h-3 rounded-full bg-[var(--color-brand)] ring-2 ring-[var(--color-card)]" />
             </div>
             <div class="leading-tight min-w-0">
-              <div class="font-display font-bold text-[14px] text-[var(--color-ink)] tracking-tight truncate">Nono Club</div>
+              <div class="font-display font-bold text-[14px] text-[var(--color-ink)] tracking-tight truncate">{{ branding?.venueName ?? 'Nono Club' }}</div>
               <div class="text-[10px] uppercase tracking-[0.2em] text-[var(--color-muted-2)]">Sales · Commission</div>
             </div>
           </div>
@@ -72,6 +74,10 @@ watch(() => route.path, () => { drawer.value = false })
           >
             <XMarkIcon class="w-5 h-5" />
           </button>
+        </div>
+
+        <div class="pt-2">
+          <ClubSwitcher />
         </div>
 
         <nav class="flex-1 px-2.5 py-3 overflow-y-auto min-h-0">

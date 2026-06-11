@@ -8,8 +8,17 @@ import { useAuthStore } from '~/stores/auth'
  * and immediate-vs-watch edge cases that left some pages stuck on null data
  * when the URL transitioned from empty to valid after auth hydration.
  */
+// Endpoints that are company-scoped (no club context required). Everything
+// else waits for the active club to hydrate before fetching.
+const CLUB_FREE_PREFIXES = ['/auth', '/clubs', '/users', '/settings', '/branding']
+function needsClub(u: string): boolean {
+  if (u.includes('scope=staff')) return false
+  return !CLUB_FREE_PREFIXES.some(p => u.startsWith(p))
+}
+
 export function useAPI<T = unknown>(path: string | (() => string)) {
   const auth = useAuthStore()
+  const activeClubId = useState<number | null>('active-club-id', () => null)
   const url = computed(() => typeof path === 'function' ? path() : path)
   const data = ref<T | null>(null) as Ref<T | null>
   const pending = ref(false)
@@ -32,12 +41,21 @@ export function useAPI<T = unknown>(path: string | (() => string)) {
       data.value = null
       return
     }
+    // Club-scoped endpoints wait until the active club is known (it hydrates
+    // right after layout mount); the watcher below re-fires this load.
+    if (needsClub(u) && !activeClubId.value) {
+      data.value = null
+      return
+    }
     pending.value = true
     error.value = null
     try {
       const token = authToken()
       data.value = await $fetch<T>(`/api/v1${u}`, {
-        headers: token ? { authorization: `Bearer ${token}` } : undefined,
+        headers: {
+          ...(token ? { authorization: `Bearer ${token}` } : {}),
+          ...(activeClubId.value ? { 'x-club-id': String(activeClubId.value) } : {}),
+        },
       })
     } catch (e: any) {
       error.value = e
@@ -51,7 +69,7 @@ export function useAPI<T = unknown>(path: string | (() => string)) {
     }
   }
 
-  watch(url, load, { immediate: true })
+  watch([url, activeClubId], load, { immediate: true })
 
   return { data, pending, error, refresh: load }
 }

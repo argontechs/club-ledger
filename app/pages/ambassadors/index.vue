@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useAuthStore } from '~/stores/auth'
+import { useClub } from '~/composables/useClub'
 definePageMeta({ middleware: ['role'] })
 
 const { data: rows, refresh } = useAPI<any[]>('/ambassadors')
@@ -7,6 +8,77 @@ const { data: teams } = useAPI<any[]>('/teams')
 const { data: rolesList } = useAPI<any[]>('/roles')
 const ambassadorRoles = computed(() => (rolesList.value ?? []).filter(r => r.tier === 'ambassador'))
 const defaultRoleId = computed(() => ambassadorRoles.value.find(r => r.name === 'ambassador')?.id ?? ambassadorRoles.value[0]?.id ?? null)
+
+// Cross-club import: copy ambassadors (identity + bank details) from another club.
+const { clubs, activeClubId, activeClub } = useClub()
+const otherClubs = computed(() => clubs.value.filter(c => c.id !== activeClubId.value))
+const showImport = ref(false)
+const importSourceClubId = ref<number | null>(null)
+const importRoleId = ref<number | null>(null)
+const importSelected = ref<Set<number>>(new Set())
+const importCandidates = ref<any[]>([])
+const importLoading = ref(false)
+const importing = ref(false)
+
+watch(showImport, (v) => {
+  if (v) {
+    importSourceClubId.value = otherClubs.value[0]?.id ?? null
+    importRoleId.value = defaultRoleId.value
+    importSelected.value = new Set()
+    importCandidates.value = []
+    if (importSourceClubId.value) loadImportCandidates()
+  }
+})
+watch(importSourceClubId, () => { if (showImport.value) loadImportCandidates() })
+
+async function loadImportCandidates() {
+  if (!importSourceClubId.value) return
+  importLoading.value = true
+  importSelected.value = new Set()
+  try {
+    // Fetch the source club's ambassadors by overriding the club header.
+    const auth = useAuthStore()
+    const list = await $fetch<any[]>('/api/v1/ambassadors', {
+      headers: {
+        authorization: auth.token ? `Bearer ${auth.token}` : '',
+        'x-club-id': String(importSourceClubId.value),
+      },
+    })
+    const existingIcs = new Set((rows.value ?? []).map(r => r.ic).filter(Boolean))
+    importCandidates.value = (list ?? [])
+      .filter(a => !a.isProtected)
+      .map(a => ({ ...a, alreadyHere: !!(a.ic && existingIcs.has(a.ic)) }))
+  } catch {
+    importCandidates.value = []
+  } finally {
+    importLoading.value = false
+  }
+}
+
+function toggleImport(id: number) {
+  const s = new Set(importSelected.value)
+  if (s.has(id)) s.delete(id)
+  else s.add(id)
+  importSelected.value = s
+}
+
+async function runImport() {
+  if (!importSelected.value.size || !importRoleId.value || importing.value) return
+  importing.value = true
+  try {
+    const r = await m.post<{ created: number }>('/ambassadors/import', {
+      sourceAmbassadorIds: Array.from(importSelected.value),
+      roleId: Number(importRoleId.value),
+    })
+    showImport.value = false
+    await refresh()
+    toast.success(`Imported ${r.created} ambassador${r.created === 1 ? '' : 's'} into ${activeClub.value?.name ?? 'this club'}`)
+  } catch (e: any) {
+    toast.error(e?.data?.error?.message || 'Import failed')
+  } finally {
+    importing.value = false
+  }
+}
 
 const auth = useAuthStore()
 const m = useAPIMutation()
@@ -121,7 +193,12 @@ const isAdmin = computed(() => auth.user?.tier === 'admin' && auth.user?.role !=
       <p class="text-[13px] text-[var(--color-muted)]">
         Manage ambassadors, their team, role, and bank details.
       </p>
-      <AppButton class="w-full sm:w-auto" @click="showAdd = true">+ New ambassador</AppButton>
+      <div class="flex flex-col sm:flex-row gap-2">
+        <AppButton v-if="otherClubs.length" class="w-full sm:w-auto" variant="secondary" @click="showImport = true">
+          Import from club
+        </AppButton>
+        <AppButton class="w-full sm:w-auto" @click="showAdd = true">+ New ambassador</AppButton>
+      </div>
     </div>
 
     <AppTable :rows="pagedRows" empty-text="No ambassadors yet">
@@ -216,6 +293,53 @@ const isAdmin = computed(() => auth.user?.tier === 'admin' && auth.user?.role !=
         <AppButton variant="secondary" @click="closeModal">Cancel</AppButton>
         <AppButton :disabled="saving || !form.name.trim()" @click="save">
           {{ saving ? 'Saving…' : (editing ? 'Save changes' : 'Create') }}
+        </AppButton>
+      </template>
+    </AppModal>
+
+    <AppModal :open="showImport" title="Import ambassadors from another club" size="lg" @close="showImport = false">
+      <div class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <AppSelect
+            v-model="importSourceClubId"
+            :options="otherClubs.map(c => ({ value: c.id, label: c.name }))"
+            label="Source club"
+          />
+          <AppSelect
+            v-model="importRoleId"
+            :options="ambassadorRoles.map(r => ({ value: r.id, label: r.name }))"
+            label="Role in this club"
+          />
+        </div>
+        <p class="text-[12px] text-[var(--color-muted)]">
+          Copies name, IC, and bank details into {{ activeClub?.name ?? 'this club' }}. Sales history stays with the source club.
+        </p>
+        <div class="max-h-72 overflow-y-auto rounded-xl border border-[var(--color-border-2)] divide-y divide-[var(--color-border-2)]">
+          <p v-if="importLoading" class="px-4 py-3 text-[13px] text-[var(--color-muted-2)]">Loading…</p>
+          <p v-else-if="!importCandidates.length" class="px-4 py-3 text-[13px] text-[var(--color-muted-2)]">No ambassadors in that club.</p>
+          <label
+            v-for="a in importCandidates"
+            :key="a.id"
+            class="flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-[var(--color-hairline)]"
+          >
+            <input
+              type="checkbox"
+              class="accent-[var(--color-brand)]"
+              :checked="importSelected.has(a.id)"
+              @change="toggleImport(a.id)"
+            >
+            <span class="flex-1 min-w-0">
+              <span class="block text-[13px] font-medium text-[var(--color-ink)] truncate">{{ a.name }}</span>
+              <span v-if="a.fullName" class="block text-[11px] text-[var(--color-muted-2)] truncate">{{ a.fullName }}</span>
+            </span>
+            <AppBadge v-if="a.alreadyHere" tone="amber" :dot="false" shape="square">Same IC exists here</AppBadge>
+          </label>
+        </div>
+      </div>
+      <template #footer>
+        <AppButton variant="secondary" @click="showImport = false">Cancel</AppButton>
+        <AppButton :disabled="importing || !importSelected.size || !importRoleId" @click="runImport">
+          {{ importing ? 'Importing…' : `Import ${importSelected.size || ''}` }}
         </AppButton>
       </template>
     </AppModal>

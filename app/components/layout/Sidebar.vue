@@ -50,6 +50,9 @@ function logout() {
       </div>
     </div>
 
+    <!-- Club switcher -->
+    <ClubSwitcher />
+
     <!-- Nav -->
     <nav class="flex-1 px-2.5 py-2 overflow-y-auto">
       <p class="px-2.5 mb-1.5 text-[9px] font-semibold uppercase tracking-[0.2em] text-[var(--color-muted-2)]">Workspace</p>

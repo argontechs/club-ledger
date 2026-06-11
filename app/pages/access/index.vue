@@ -5,7 +5,8 @@ definePageMeta({ middleware: ['role'] })
 const auth = useAuthStore()
 const { data: users, refresh } = useAPI<any[]>('/users')
 const { data: ambassadors } = useAPI<any[]>('/ambassadors')
-const { data: roles } = useAPI<any[]>('/roles')
+// Logins hold company-level staff roles; club commission roles live on the Roles page.
+const { data: roles } = useAPI<any[]>('/roles?scope=staff')
 
 const roleOptions = computed(() => (roles.value ?? []).map(r => ({ value: r.id, label: r.name })))
 
@@ -18,8 +19,8 @@ const form = ref({ email: '', name: '', password: '', roleId: 0, ambassadorId: n
 
 watch(showAdd, (v) => {
   if (v && !editing.value) {
-    const ambassadorRoleId = roles.value?.find(r => r.name === 'ambassador')?.id ?? 0
-    form.value = { email: '', name: '', password: '', roleId: ambassadorRoleId, ambassadorId: null }
+    const defaultRoleId = roles.value?.find(r => r.name === 'admin')?.id ?? roles.value?.[0]?.id ?? 0
+    form.value = { email: '', name: '', password: '', roleId: defaultRoleId, ambassadorId: null }
   }
 })
 watch(editing, (v) => {

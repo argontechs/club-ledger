@@ -1,3 +1,11 @@
+<script setup lang="ts">
+import { onMounted } from 'vue'
+import { useClub } from '~/composables/useClub'
+
+const { refreshClubs } = useClub()
+onMounted(refreshClubs)
+</script>
+
 <template>
   <div class="flex min-h-screen bg-[var(--color-surface)] text-[var(--color-ink)]">
     <Sidebar class="hidden lg:flex" />

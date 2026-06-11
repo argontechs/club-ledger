@@ -1,9 +1,13 @@
 <script setup lang="ts">
 import { computed, provide } from 'vue'
+import { useClub } from '~/composables/useClub'
 
-const { data: branding } = useAPI<{ logoUrl: string | null; venueName: string }>('/branding')
+const { activeClubId } = useClub()
+const { data: branding } = useAPI<{ logoUrl: string | null; venueName: string }>(
+  () => activeClubId.value ? `/branding?club=${activeClubId.value}` : '/branding',
+)
 const faviconHref = computed(() =>
-  branding.value?.logoUrl ? `${branding.value.logoUrl}?v=${Date.now()}` : '/favicon.png'
+  branding.value?.logoUrl ? `${branding.value.logoUrl}&v=${Date.now()}` : '/favicon.png'
 )
 useHead({
   link: [{ rel: 'icon', type: 'image/png', href: faviconHref }],

@@ -1,7 +1,11 @@
 <script setup lang="ts">
+import { useClub } from '~/composables/useClub'
 definePageMeta({ middleware: ['role'] })
 const { data: settings, refresh } = useAPI<Record<string, string>>('/settings')
-const { data: branding, refresh: refreshBranding } = useAPI<{ logoUrl: string | null; venueName: string }>('/branding')
+const { activeClub, activeClubId, refreshClubs } = useClub()
+const { data: branding, refresh: refreshBranding } = useAPI<{ logoUrl: string | null; venueName: string }>(
+  () => activeClubId.value ? `/branding?club=${activeClubId.value}` : '/branding',
+)
 
 const form = ref({
   currency_symbol: '',
@@ -17,8 +21,8 @@ const saved = ref(false)
 
 watch(settings, (s) => {
   if (s) form.value = {
+    ...form.value,
     currency_symbol: s.currency_symbol ?? '',
-    venue_name: s.venue_name ?? '',
     company_name: s.company_name ?? '',
     company_address: s.company_address ?? '',
     company_registration: s.company_registration ?? '',
@@ -26,6 +30,8 @@ watch(settings, (s) => {
     company_email: s.company_email ?? '',
   }
 }, { immediate: true })
+// The venue name is the ACTIVE CLUB's name (clubs table), not a settings key.
+watch(activeClub, (c) => { if (c) form.value.venue_name = c.name }, { immediate: true })
 
 const m = useAPIMutation()
 const toast = useToast()
@@ -35,13 +41,16 @@ async function save() {
   try {
     await m.put('/settings', {
       currency_symbol: form.value.currency_symbol,
-      venue_name: form.value.venue_name,
       company_name: form.value.company_name,
       company_address: form.value.company_address,
       company_registration: form.value.company_registration,
       company_phone: form.value.company_phone,
       company_email: form.value.company_email,
     })
+    if (activeClubId.value && form.value.venue_name.trim() && form.value.venue_name !== activeClub.value?.name) {
+      await m.put(`/clubs/${activeClubId.value}`, { name: form.value.venue_name.trim() })
+      await refreshClubs()
+    }
     await refresh()
     saved.value = true
     toast.success('Settings saved')
@@ -92,11 +101,11 @@ async function changePassword() {
       <section class="bg-[var(--color-card)] border border-[var(--color-border-2)] rounded-2xl p-6 shadow-card space-y-4">
         <header>
           <p class="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-muted-2)]">Branding</p>
-          <h3 class="font-display text-[17px] font-semibold text-[var(--color-ink)] tracking-tight mt-0.5">Venue</h3>
-          <p class="text-[12px] text-[var(--color-muted)] mt-1">Display name and currency shown across the dashboard.</p>
+          <h3 class="font-display text-[17px] font-semibold text-[var(--color-ink)] tracking-tight mt-0.5">Active club</h3>
+          <p class="text-[12px] text-[var(--color-muted)] mt-1">Renames the club selected in the switcher. Currency applies company-wide.</p>
         </header>
         <div class="space-y-3">
-          <AppInput v-model="form.venue_name" label="Venue name" />
+          <AppInput v-model="form.venue_name" label="Club name" />
           <AppInput v-model="form.currency_symbol" label="Currency symbol" />
         </div>
       </section>
@@ -105,9 +114,9 @@ async function changePassword() {
       <section class="bg-[var(--color-card)] border border-[var(--color-border-2)] rounded-2xl p-6 shadow-card space-y-4">
         <header>
           <p class="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-muted-2)]">Branding</p>
-          <h3 class="font-display text-[17px] font-semibold text-[var(--color-ink)] tracking-tight mt-0.5">Company logo</h3>
+          <h3 class="font-display text-[17px] font-semibold text-[var(--color-ink)] tracking-tight mt-0.5">Club logo</h3>
           <p class="text-[12px] text-[var(--color-muted)] mt-1">
-            Replaces the wordmark on the login page, the top-left header, and the favicon.
+            This club's logo — shown in the sidebar, header, and favicon while it is active.
           </p>
         </header>
         <LogoUploader :logo-url="branding?.logoUrl ?? null" @changed="refreshBranding" />
