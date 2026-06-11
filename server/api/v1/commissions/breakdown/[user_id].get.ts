@@ -9,7 +9,7 @@ export default defineEventHandler(async (event) => {
   if (!/^\d{4}-\d{2}$/.test(month)) throw ApiError.validation({ month: 'expected YYYY-MM' })
 
   const actor = event.context.user!
-  if ((actor.roleName === 'leader' || actor.roleName === 'ambassador') && userId !== actor.id) {
+  if ((actor as any).tier !== 'admin' && userId !== actor.id) {
     throw ApiError.forbidden()
   }
 

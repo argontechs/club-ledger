@@ -64,8 +64,8 @@ export const RoleService = {
     }
     const v = validateRolePayload(body)
 
-    if (v.tier === 'admin' && actor.roleName !== 'owner') {
-      throw ApiError.forbidden('Only Owner can create admin-tier roles')
+    if (v.tier === 'admin' && !(actor as any).isOwner) {
+      throw ApiError.forbidden('Only the owner can create admin-tier roles')
     }
     const clubRoles = await RoleRepo.listByClub(clubId)
     if (clubRoles.some(r => r.name === v.name)) {
@@ -102,8 +102,8 @@ export const RoleService = {
         throw ApiError.validation({ tier: 'System role tier cannot be changed' })
       }
     }
-    if (v.tier === 'admin' && existing.tier !== 'admin' && actor.roleName !== 'owner') {
-      throw ApiError.forbidden('Only Owner can promote a role to admin tier')
+    if (v.tier === 'admin' && existing.tier !== 'admin' && !(actor as any).isOwner) {
+      throw ApiError.forbidden('Only the owner can promote a role to admin tier')
     }
     if (v.name !== existing.name) {
       const clubRoles = await RoleRepo.listByClub(existing.clubId)

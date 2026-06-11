@@ -184,7 +184,7 @@ async function remove(row: any) {
 }
 
 function isOwnerProtected(row: any) { return !!row.isProtected }
-const isAdmin = computed(() => auth.user?.tier === 'admin' && auth.user?.role !== 'owner')
+const isAdmin = computed(() => auth.user?.tier === 'admin' && !(auth.user as any)?.isOwner)
 </script>
 
 <template>

@@ -26,7 +26,7 @@ async function loadOne(id: number) {
   const r = await db.select({
     id: schema.users.id, email: schema.users.email, name: schema.users.name,
     roleId: schema.users.roleId, ambassadorId: schema.users.ambassadorId,
-    role: schema.roles.name,
+    role: schema.roles.name, isOwner: schema.roles.isOwner,
   }).from(schema.users).innerJoin(schema.roles, eq(schema.roles.id, schema.users.roleId))
     .where(eq(schema.users.id, id)).limit(1)
   return r[0]
@@ -34,14 +34,14 @@ async function loadOne(id: number) {
 
 // Logins hold company-level STAFF roles only (club_id IS NULL); commission
 // roles belong to clubs and are assigned to ambassadors, never to users.
-async function getStaffRoleName(roleId: number) {
+async function getStaffRole(roleId: number) {
   const r = await useDB().select().from(schema.roles).where(eq(schema.roles.id, roleId)).limit(1)
   const role = r[0]
   if (!role) return undefined
   if (role.clubId !== null) {
     throw ApiError.validation({ roleId: 'Users must be assigned a staff role, not a club commission role' })
   }
-  return role.name
+  return role
 }
 
 function assertAdminTier(actor: Actor & { tier?: string }) {
@@ -57,6 +57,7 @@ export const UserService = {
     return db.select({
       id: schema.users.id, email: schema.users.email, name: schema.users.name,
       ambassadorId: schema.users.ambassadorId, role: schema.roles.name,
+      isOwner: schema.roles.isOwner,
     }).from(schema.users).innerJoin(schema.roles, eq(schema.roles.id, schema.users.roleId))
       .where(isNull(schema.users.deletedAt))
   },
@@ -64,9 +65,9 @@ export const UserService = {
   async create(actor: Actor & { tier?: string }, body: unknown) {
     assertAdminTier(actor)
     const v = CreateSchema.parse(body)
-    const targetRole = await getStaffRoleName(v.roleId)
+    const targetRole = await getStaffRole(v.roleId)
     if (!targetRole) throw ApiError.validation({ roleId: 'Unknown role' })
-    if (targetRole === 'owner' && actor.roleName !== 'owner')
+    if (targetRole.isOwner === 1 && !(actor as any).isOwner)
       throw ApiError.forbidden('owner-protected')
     const passwordHash = await hashPassword(v.password)
     const r = await useDB().insert(schema.users).values({
@@ -80,16 +81,16 @@ export const UserService = {
     assertAdminTier(actor)
     const target = await loadOne(id)
     if (!target) throw ApiError.notFound('User')
-    await assertNotOwnerProtected(actor, { kind: 'user', targetRoleName: target.role })
+    await assertNotOwnerProtected(actor, { kind: 'user', targetIsOwner: target.isOwner === 1 })
     const v = UpdateSchema.parse(body)
     if (v.roleId !== undefined) {
-      const newRole = await getStaffRoleName(v.roleId)
+      const newRole = await getStaffRole(v.roleId)
       if (!newRole) throw ApiError.validation({ roleId: 'Unknown role' })
-      if (newRole === 'owner' && actor.roleName !== 'owner')
+      if (newRole.isOwner === 1 && !(actor as any).isOwner)
         throw ApiError.forbidden('owner-protected')
-      if (target.role === 'owner' && newRole !== 'owner') {
+      if (target.isOwner === 1 && newRole.isOwner !== 1) {
         const owners = await useDB().select().from(schema.users).innerJoin(schema.roles, eq(schema.roles.id, schema.users.roleId))
-          .where(and(eq(schema.roles.name, 'owner'), isNull(schema.users.deletedAt)))
+          .where(and(eq(schema.roles.isOwner, 1), isNull(schema.users.deletedAt)))
         if (owners.length <= 1) throw ApiError.conflict('Cannot demote the only owner')
       }
     }
@@ -107,8 +108,8 @@ export const UserService = {
     assertAdminTier(actor)
     const target = await loadOne(id)
     if (!target) throw ApiError.notFound('User')
-    await assertNotOwnerProtected(actor, { kind: 'user', targetRoleName: target.role })
-    if (target.role === 'owner') throw ApiError.conflict('Cannot delete an owner')
+    await assertNotOwnerProtected(actor, { kind: 'user', targetIsOwner: target.isOwner === 1 })
+    if (target.isOwner === 1) throw ApiError.conflict('Cannot delete an owner')
     await useDB().update(schema.users).set({ deletedAt: new Date() }).where(eq(schema.users.id, id))
   },
 }

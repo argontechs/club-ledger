@@ -16,7 +16,9 @@ export default defineEventHandler(async (event) => {
     r.userId === actor.id || r.ownSales > 0 || r.bonus > 0,
   )
 
-  if (actor.roleName === 'leader' || actor.roleName === 'ambassador') {
+  // Non-admin tiers only see their own row — keyed on tier, not role names,
+  // so renamed or custom roles keep the correct visibility.
+  if ((actor as any).tier !== 'admin') {
     return visible.filter(r => r.userId === actor.id)
   }
   return visible

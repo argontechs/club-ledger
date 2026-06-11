@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // The mocked db.select(...).from(...).innerJoin(...).where() result is whatever
 // the test puts in `nextResult`. Tests set this before calling the function under
-// test to simulate "owner is linked to this ambassador" vs "no owner link".
+// test to simulate "an owner is linked to this ambassador" vs "no owner link".
 const mockState: { nextResult: unknown[] } = { nextResult: [] }
 
 vi.mock('~~/server/db/client', () => {
@@ -19,7 +19,7 @@ vi.mock('~~/server/db/client', () => {
     useDB,
     schema: {
       users: { ambassadorId: { name: 'ambassador_id' }, roleId: { name: 'role_id' } },
-      roles: { id: { name: 'id' }, name: { name: 'name' } },
+      roles: { id: { name: 'id' }, isOwner: { name: 'is_owner' } },
     },
   }
 })
@@ -27,6 +27,9 @@ vi.mock('~~/server/db/client', () => {
 import { isOwnerProtectedAmbassador, assertNotOwnerProtected } from '~~/server/utils/permissions'
 
 beforeEach(() => { mockState.nextResult = [] })
+
+const ownerActor = { id: 1, roleName: 'whatever', isOwner: 1 }
+const nonOwnerAdmin = { id: 2, roleName: 'renamed-admin', isOwner: 0 }
 
 describe('isOwnerProtectedAmbassador', () => {
   it('returns true when an owner user links to that ambassador', async () => {
@@ -39,50 +42,50 @@ describe('isOwnerProtectedAmbassador', () => {
   })
 })
 
-describe('assertNotOwnerProtected', () => {
-  it('throws for admin actor on owner-protected user', async () => {
+describe('assertNotOwnerProtected (flag-based — survives role renames)', () => {
+  it('throws for non-owner actor on owner-flagged user target', async () => {
     await expect(
-      assertNotOwnerProtected({ id: 1, roleName: 'admin' }, { kind: 'user', targetRoleName: 'owner' }),
+      assertNotOwnerProtected(nonOwnerAdmin, { kind: 'user', targetIsOwner: true }),
     ).rejects.toThrow()
   })
 
-  it('allows owner actor on anything', async () => {
+  it('allows owner actor on anything, regardless of role name', async () => {
     await expect(
-      assertNotOwnerProtected({ id: 1, roleName: 'owner' }, { kind: 'user', targetRoleName: 'owner' }),
+      assertNotOwnerProtected(ownerActor, { kind: 'user', targetIsOwner: true }),
     ).resolves.toBeUndefined()
   })
 
-  it('allows admin on non-owner targets (user kind)', async () => {
+  it('allows non-owner actors on non-owner targets', async () => {
     await expect(
-      assertNotOwnerProtected({ id: 1, roleName: 'admin' }, { kind: 'user', targetRoleName: 'leader' }),
+      assertNotOwnerProtected(nonOwnerAdmin, { kind: 'user', targetIsOwner: false }),
     ).resolves.toBeUndefined()
   })
 
-  it('throws for admin actor on owner-linked ambassador', async () => {
+  it('throws for non-owner actor on owner-linked ambassador', async () => {
     mockState.nextResult = [{ ambassadorId: 7 }]
     await expect(
-      assertNotOwnerProtected({ id: 1, roleName: 'admin' }, { kind: 'ambassador', ambassadorId: 7 }),
+      assertNotOwnerProtected(nonOwnerAdmin, { kind: 'ambassador', ambassadorId: 7 }),
     ).rejects.toThrow()
   })
 
-  it('allows admin actor on a non-owner-linked ambassador', async () => {
+  it('allows non-owner actor on a non-owner-linked ambassador', async () => {
     mockState.nextResult = []
     await expect(
-      assertNotOwnerProtected({ id: 1, roleName: 'admin' }, { kind: 'ambassador', ambassadorId: 42 }),
+      assertNotOwnerProtected(nonOwnerAdmin, { kind: 'ambassador', ambassadorId: 42 }),
     ).resolves.toBeUndefined()
   })
 
-  it('allows admin actor on owner-linked sale (day-to-day data entry)', async () => {
+  it('allows non-owner actor on owner-linked sale (day-to-day data entry)', async () => {
     mockState.nextResult = [{ ambassadorId: 7 }]
     await expect(
-      assertNotOwnerProtected({ id: 1, roleName: 'admin' }, { kind: 'sale', ambassadorId: 7 }),
+      assertNotOwnerProtected(nonOwnerAdmin, { kind: 'sale', ambassadorId: 7 }),
     ).resolves.toBeUndefined()
   })
 
-  it('allows admin actor on owner-linked payout (day-to-day operations)', async () => {
+  it('allows non-owner actor on owner-linked payout (day-to-day operations)', async () => {
     mockState.nextResult = [{ ambassadorId: 7 }]
     await expect(
-      assertNotOwnerProtected({ id: 1, roleName: 'admin' }, { kind: 'payout', ambassadorId: 7 }),
+      assertNotOwnerProtected(nonOwnerAdmin, { kind: 'payout', ambassadorId: 7 }),
     ).resolves.toBeUndefined()
   })
 })

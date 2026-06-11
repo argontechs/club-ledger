@@ -17,7 +17,7 @@ const props = defineProps<{ open: boolean; role: Role | null }>()
 const emit = defineEmits<{ (e: 'close'): void; (e: 'saved'): void }>()
 
 const auth = useAuthStore()
-const isOwner = computed(() => auth.user?.role === 'owner')
+const isOwner = computed(() => !!(auth.user as any)?.isOwner)
 const m = useAPIMutation()
 const toast = useToast()
 const saving = ref(false)

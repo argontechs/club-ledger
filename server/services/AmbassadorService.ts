@@ -126,7 +126,7 @@ export const AmbassadorService = {
     const a = await AmbassadorRepo.findById(id)
     if (!a || a.clubId !== clubId) throw ApiError.notFound('Ambassador')
     await assertNotOwnerProtected(actor, { kind: 'ambassador', ambassadorId: id })
-    if (a.isProtected && actor.roleName !== 'owner') throw ApiError.forbidden('Protected ambassador')
+    if (a.isProtected && !(actor as any).isOwner) throw ApiError.forbidden('Protected ambassador')
     const v = parseOrThrow(UpdateSchema, body)
     if (v.roleId !== undefined) await assertClubRole(v.roleId, a.clubId)
 

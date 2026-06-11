@@ -31,6 +31,9 @@ export const roles = mysqlTable('roles', {
   kpiThreshold: decimal('kpi_threshold', { precision: 12, scale: 2 }),
   requiresKpi: tinyint('requires_kpi').default(0).notNull(),
   isSystem: tinyint('is_system').default(0).notNull(),
+  // Owner-protection anchor: replaces literal role-name checks ('owner') so
+  // companies can rename roles without silently disabling protections.
+  isOwner: tinyint('is_owner').default(0).notNull(),
   ...ts(),
 }, (t) => ({
   clubName: unique('roles_club_name_unique').on(t.clubId, t.name),

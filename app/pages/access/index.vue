@@ -66,7 +66,7 @@ async function remove(row: any) {
 }
 
 const isAdmin = computed(() => auth.user?.role === 'admin')
-function isOwner(u: any) { return u.role === 'owner' }
+function isOwner(u: any) { return u.isOwner === 1 || u.isOwner === true }
 
 const roleTone = (r: string) => {
   if (r === 'owner' || r === 'admin') return 'rose'
@@ -102,7 +102,7 @@ const roleTone = (r: string) => {
         <td class="px-4 py-3 text-right">
           <div v-if="!(isAdmin && isOwner(row))" class="inline-flex gap-1.5">
             <AppButton size="sm" variant="secondary" @click="editing = row">Edit</AppButton>
-            <AppButton v-if="row.role !== 'owner'" size="sm" variant="danger" @click="remove(row)">Delete</AppButton>
+            <AppButton v-if="!isOwner(row)" size="sm" variant="danger" @click="remove(row)">Delete</AppButton>
           </div>
         </td>
       </template>

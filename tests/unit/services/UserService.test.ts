@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 
-const mockState: { roleRow: any } = { roleRow: { id: 2, name: 'owner', clubId: null } }
+const mockState: { roleRow: any } = { roleRow: { id: 2, name: 'owner', clubId: null, isOwner: 1 } }
 vi.mock('~~/server/db/client', () => ({
   useDB: () => ({
     select: () => ({
@@ -31,12 +31,12 @@ describe('UserService guards', () => {
     await expect(UserService.create({ id: 9, roleName: 'x', tier: 'ambassador' } as any, body))
       .rejects.toMatchObject({ statusCode: 403 })
   })
-  it('only an owner can create an owner — admin blocked', async () => {
-    await expect(UserService.create({ id: 9, roleName: 'admin', tier: 'admin' } as any, body))
+  it('only an owner can create an owner — non-owner admin blocked', async () => {
+    await expect(UserService.create({ id: 9, roleName: 'admin', tier: 'admin', isOwner: 0 } as any, body))
       .rejects.toMatchObject({ statusCode: 403 })
   })
-  it('only an owner can create an owner — any other admin-tier roleName blocked too', async () => {
-    await expect(UserService.create({ id: 9, roleName: 'director', tier: 'admin' } as any, body))
+  it('only an owner can create an owner — renamed admin-tier roles blocked too', async () => {
+    await expect(UserService.create({ id: 9, roleName: 'director', tier: 'admin', isOwner: 0 } as any, body))
       .rejects.toMatchObject({ statusCode: 403 })
   })
 })
