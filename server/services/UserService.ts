@@ -37,8 +37,15 @@ async function getRoleName(roleId: number) {
   return r[0]?.name
 }
 
+function assertAdminTier(actor: Actor & { tier?: string }) {
+  if ((actor as any).tier !== 'admin') {
+    throw ApiError.forbidden('Insufficient role')
+  }
+}
+
 export const UserService = {
-  async list() {
+  async list(actor: Actor & { tier?: string }) {
+    assertAdminTier(actor)
     const db = useDB()
     return db.select({
       id: schema.users.id, email: schema.users.email, name: schema.users.name,
@@ -47,11 +54,12 @@ export const UserService = {
       .where(isNull(schema.users.deletedAt))
   },
 
-  async create(actor: Actor, body: unknown) {
+  async create(actor: Actor & { tier?: string }, body: unknown) {
+    assertAdminTier(actor)
     const v = CreateSchema.parse(body)
     const targetRole = await getRoleName(v.roleId)
     if (!targetRole) throw ApiError.validation({ roleId: 'Unknown role' })
-    if (actor.roleName === 'admin' && targetRole === 'owner')
+    if (targetRole === 'owner' && actor.roleName !== 'owner')
       throw ApiError.forbidden('owner-protected')
     const passwordHash = await hashPassword(v.password)
     const r = await useDB().insert(schema.users).values({
@@ -61,7 +69,8 @@ export const UserService = {
     return loadOne((r as any)[0].insertId)
   },
 
-  async update(actor: Actor, id: number, body: unknown) {
+  async update(actor: Actor & { tier?: string }, id: number, body: unknown) {
+    assertAdminTier(actor)
     const target = await loadOne(id)
     if (!target) throw ApiError.notFound('User')
     await assertNotOwnerProtected(actor, { kind: 'user', targetRoleName: target.role })
@@ -69,7 +78,7 @@ export const UserService = {
     if (v.roleId !== undefined) {
       const newRole = await getRoleName(v.roleId)
       if (!newRole) throw ApiError.validation({ roleId: 'Unknown role' })
-      if (actor.roleName === 'admin' && newRole === 'owner')
+      if (newRole === 'owner' && actor.roleName !== 'owner')
         throw ApiError.forbidden('owner-protected')
       if (target.role === 'owner' && newRole !== 'owner') {
         const owners = await useDB().select().from(schema.users).innerJoin(schema.roles, eq(schema.roles.id, schema.users.roleId))
@@ -87,7 +96,8 @@ export const UserService = {
     return loadOne(id)
   },
 
-  async remove(actor: Actor, id: number) {
+  async remove(actor: Actor & { tier?: string }, id: number) {
+    assertAdminTier(actor)
     const target = await loadOne(id)
     if (!target) throw ApiError.notFound('User')
     await assertNotOwnerProtected(actor, { kind: 'user', targetRoleName: target.role })

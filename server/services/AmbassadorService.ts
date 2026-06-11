@@ -32,12 +32,22 @@ async function assertRoleExists(roleId: number) {
   if (!r) throw ApiError.validation({ roleId: 'Unknown role' })
 }
 
-export const AmbassadorService = {
-  list: AmbassadorRepo.list,
+// PII guard: IC and bank details are admin-tier-only. Pages visible to
+// ambassador-tier logins (sales, commissions) only need names for dropdowns.
+function toSafe(a: any) {
+  return { id: a.id, name: a.name, teamId: a.teamId, roleId: a.roleId }
+}
 
-  async get(id: number) {
+export const AmbassadorService = {
+  async list(actor: Actor & { tier?: string }, filter: { teamId?: number; includeDeleted?: boolean } = {}) {
+    const rows = await AmbassadorRepo.list(filter)
+    return (actor as any).tier === 'admin' ? rows : rows.map(toSafe)
+  },
+
+  async get(id: number, actor?: Actor & { tier?: string }) {
     const a = await AmbassadorRepo.findById(id)
     if (!a) throw ApiError.notFound('Ambassador')
+    if (actor && (actor as any).tier !== 'admin') return toSafe(a)
     return a
   },
 

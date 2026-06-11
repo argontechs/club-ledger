@@ -1,2 +1,2 @@
 import { TeamService } from '~~/server/services/TeamService'
-export default defineEventHandler(() => TeamService.list())
+export default defineEventHandler((event) => TeamService.list(event.context.user! as any))
